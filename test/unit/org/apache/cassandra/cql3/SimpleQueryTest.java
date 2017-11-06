@@ -481,6 +481,20 @@ public class SimpleQueryTest extends CQLTester
     }
 
     @Test
+    public void createAndDrop() throws Throwable
+    {
+        createTable("CREATE TABLE %s (k int PRIMARY KEY, v int);");
+
+        dropTable("Drop TABLE %s");
+
+        assertRows(execute("SELECT * FROM %s"),
+                   row((Object)null)
+        );
+    }
+
+
+
+    @Test
     public void staticDistinctTest() throws Throwable
     {
         createTable("CREATE TABLE %s ( k int, p int, s int static, PRIMARY KEY (k, p))");

@@ -20,7 +20,7 @@
 <project basedir="." default="jar" name="apache-cassandra"
          xmlns:artifact="antlib:org.apache.maven.artifact.ant">
     <property environment="env"/>
-    <property file="build.properties" />
+    <property file="build.properties" ></property>
     <property file="build.properties.default" />
     <property name="debuglevel" value="source,lines,vars"/>
 
