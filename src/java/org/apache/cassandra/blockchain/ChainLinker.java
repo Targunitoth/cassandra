@@ -22,5 +22,5 @@ package org.apache.cassandra.blockchain;
 //TODO Generate a double-linked list
 public class ChainLinker
 {
-    
+
 }
