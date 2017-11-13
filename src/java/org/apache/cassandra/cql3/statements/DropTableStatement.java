@@ -61,7 +61,9 @@ public class DropTableStatement extends SchemaAlteringStatement
 
     public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws ConfigurationException
     {
-        try
+        //TODO Remove Drop-Table
+        return null;
+        /*try
         {
             KeyspaceMetadata ksm = Schema.instance.getKeyspaceMetadata(keyspace());
             if (ksm == null)
@@ -99,6 +101,6 @@ public class DropTableStatement extends SchemaAlteringStatement
             if (ifExists)
                 return null;
             throw e;
-        }
+        }*/
     }
 }

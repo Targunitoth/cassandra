@@ -485,10 +485,16 @@ public class SimpleQueryTest extends CQLTester
     {
         createTable("CREATE TABLE %s (k int PRIMARY KEY, v int);");
 
+        execute("INSERT INTO %s (k, v) VALUES (?, ?)", 0, 0);
+        execute("INSERT INTO %s (k, v) VALUES (?, ?)", 1, 1);
+        execute("INSERT INTO %s (k, v) VALUES (?, ?)", 2, 2);
+        execute("INSERT INTO %s (k, v) VALUES (?, ?)", 3, 3);
+
         dropTable("Drop TABLE %s");
 
-        assertRows(execute("SELECT * FROM %s"),
-                   row((Object)null)
+        assertRows(execute("SELECT v FROM %s WHERE k IN ? LIMIT ?", list(0, 1, 2, 3), 2),
+                   row(0),
+                   row(1)
         );
     }
 
