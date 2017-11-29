@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.auth.Permission;
+import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -585,6 +586,8 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeInternal(QueryState queryState, QueryOptions options) throws RequestValidationException, RequestExecutionException
     {
+        //TODO Traceback 4
+        //Timestamp gets set here!
         return hasConditions()
                ? executeInternalWithCondition(queryState, options)
                : executeInternalWithoutCondition(queryState, options, System.nanoTime());
@@ -592,8 +595,15 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime) throws RequestValidationException, RequestExecutionException
     {
+        //TODO Traceback 3
         for (IMutation mutation : getMutations(options, true, queryState.getTimestamp(), queryStartNanoTime))
+        {
+            //mutation contains the key
             mutation.apply();
+
+            //Hook here for Blockchain test
+            HashBlock hb = new HashBlock();
+        }
         return null;
     }
 
@@ -642,6 +652,7 @@ public abstract class ModificationStatement implements CQLStatement
     {
         UpdatesCollector collector = new UpdatesCollector(Collections.singletonMap(metadata.id, updatedColumns), 1);
         addUpdates(collector, options, local, now, queryStartNanoTime);
+        //TODO Traceback 1
         collector.validateIndexedColumns();
 
         return collector.toMutations();
@@ -700,6 +711,7 @@ public abstract class ModificationStatement implements CQLStatement
 
                 if (!restrictions.hasClusteringColumnsRestrictions())
                 {
+                    //TODO Auf dem Weg
                     addUpdateForKey(upd, Clustering.EMPTY, params);
                 }
                 else
@@ -809,6 +821,8 @@ public abstract class ModificationStatement implements CQLStatement
             this.conditions = conditions == null ? Collections.<Pair<ColumnMetadata.Raw, ColumnCondition.Raw>>emptyList() : conditions;
             this.ifNotExists = ifNotExists;
             this.ifExists = ifExists;
+
+
         }
 
         public ParsedStatement.Prepared prepare()

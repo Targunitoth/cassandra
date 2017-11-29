@@ -47,6 +47,16 @@ public class SimpleQueryTest extends CQLTester
     }
 
     @Test
+    public void quickTest() throws Throwable
+    {
+        createTable("CREATE TABLE %s (k text PRIMARY KEY, v1 text, v2 text) WITH COMPACT STORAGE");
+
+        execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "third", 3355443, "aaaaaaaaaaaa");
+        execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "first", "aaaaaaaaaaaa", "aaaaaaaaaaaa");
+        execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "second", "aaaaaaaaaaab", "aaaaaaaaaaac");
+    }
+
+    @Test
     public void testDynamicCompactTables() throws Throwable
     {
         createTable("CREATE TABLE %s (k text, t int, v text, PRIMARY KEY (k, t));");

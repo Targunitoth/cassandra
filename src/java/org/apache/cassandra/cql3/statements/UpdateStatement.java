@@ -97,6 +97,7 @@ public class UpdateStatement extends ModificationStatement
 
         if (updatesStaticRow())
         {
+            //TODO Hier wird das Update/Insert ausgeführt
             params.newRow(Clustering.STATIC_CLUSTERING);
             for (Operation op : getStaticOperations())
                 op.execute(update.partitionKey(), params);

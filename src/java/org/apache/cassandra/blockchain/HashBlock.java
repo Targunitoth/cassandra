@@ -18,9 +18,15 @@
 
 package org.apache.cassandra.blockchain;
 
+import org.apache.cassandra.tracing.Tracing;
+
 //TODO Generate a hash over the complete block and save it in the database with the hash of the old Block
 //TODO Generate a timestamp
 //TODO Use SHA-256 like the bitcoin whitepaper
 public class HashBlock
 {
+    public HashBlock()
+    {
+        System.out.println("HashBlock Called!");
+    }
 }

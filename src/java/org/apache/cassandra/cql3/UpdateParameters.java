@@ -20,6 +20,7 @@ package org.apache.cassandra.cql3;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.db.*;
@@ -42,6 +43,7 @@ public class UpdateParameters
     private final int nowInSec;
     private final long timestamp;
     private final int ttl;
+
 
     private final DeletionTime deletionTime;
 
@@ -146,6 +148,8 @@ public class UpdateParameters
 
     public void addCell(ColumnMetadata column, CellPath path, ByteBuffer value) throws InvalidRequestException
     {
+        //TODO Hier wird der Wert der Zelle gesetzt.
+        //TODO Hier ist der Inhalt der Zelle im Klartext
         Cell cell = ttl == LivenessInfo.NO_TTL
                   ? BufferCell.live(column, timestamp, value, path)
                   : BufferCell.expiring(column, timestamp, ttl, nowInSec, value, path);

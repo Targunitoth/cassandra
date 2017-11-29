@@ -43,6 +43,7 @@ public class DropTableStatement extends SchemaAlteringStatement
 
     public void checkAccess(ClientState state) throws UnauthorizedException, InvalidRequestException
     {
+        //TODO Shall this be kept?
         try
         {
             state.hasColumnFamilyAccess(keyspace(), columnFamily(), Permission.DROP);
@@ -61,46 +62,7 @@ public class DropTableStatement extends SchemaAlteringStatement
 
     public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws ConfigurationException
     {
-        //TODO Remove Drop-Table
+        //Deleted the Drop Table statement
         return null;
-        /*try
-        {
-            KeyspaceMetadata ksm = Schema.instance.getKeyspaceMetadata(keyspace());
-            if (ksm == null)
-                throw new ConfigurationException(String.format("Cannot drop table in unknown keyspace '%s'", keyspace()));
-            TableMetadata metadata = ksm.getTableOrViewNullable(columnFamily());
-            if (metadata != null)
-            {
-                if (metadata.isView())
-                    throw new InvalidRequestException("Cannot use DROP TABLE on Materialized View");
-
-                boolean rejectDrop = false;
-                StringBuilder messageBuilder = new StringBuilder();
-                for (ViewMetadata def : ksm.views)
-                {
-                    if (def.baseTableId.equals(metadata.id))
-                    {
-                        if (rejectDrop)
-                            messageBuilder.append(',');
-                        rejectDrop = true;
-                        messageBuilder.append(def.name);
-                    }
-                }
-                if (rejectDrop)
-                {
-                    throw new InvalidRequestException(String.format("Cannot drop table when materialized views still depend on it (%s.{%s})",
-                                                                    keyspace(),
-                                                                    messageBuilder.toString()));
-                }
-            }
-            MigrationManager.announceTableDrop(keyspace(), columnFamily(), isLocalOnly);
-            return new Event.SchemaChange(Event.SchemaChange.Change.DROPPED, Event.SchemaChange.Target.TABLE, keyspace(), columnFamily());
-        }
-        catch (ConfigurationException e)
-        {
-            if (ifExists)
-                return null;
-            throw e;
-        }*/
     }
 }
