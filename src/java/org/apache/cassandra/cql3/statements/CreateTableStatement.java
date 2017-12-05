@@ -399,7 +399,34 @@ public class CreateTableStatement extends SchemaAlteringStatement
             definitions.put(def, type);
             if (isStatic)
                 staticColumns.add(def);
+
+            if(def.toString().toLowerCase().contains("blockchainid")){
+                System.out.println("Column name blockchainid was detected");
+                addBlockchainDefinition(isStatic);
+            }
         }
+
+        public void addBlockchainDefinition(boolean isStatic)
+        {
+            System.out.println("addBlockchainDefinition was called");
+            ColumnIdentifier def = new ColumnIdentifier("predecessor", false, true);
+            CQL3Type.Raw type = CQL3Type.Raw.from(CQL3Type.Native.TIMEUUID);
+
+            definedNames.add(def);
+            definitions.put(def, type);
+            if (isStatic)
+                staticColumns.add(def);
+
+            def = new ColumnIdentifier("hash", false, true);
+            type =  CQL3Type.Raw.from(CQL3Type.Native.TEXT);
+
+            definedNames.add(def);
+            definitions.put(def, type);
+            if (isStatic)
+                staticColumns.add(def);
+        }
+
+
 
         public void addKeyAliases(List<ColumnIdentifier> aliases)
         {

@@ -17,7 +17,17 @@
  */
 package org.apache.cassandra.cql3;
 
+import java.util.ListIterator;
+import java.util.UUID;
+
 import org.junit.Test;
+
+import org.apache.cassandra.db.marshal.TimeUUIDType;
+
+import static com.datastax.driver.core.DataType.timeuuid;
+import static com.datastax.driver.core.DataType.uuid;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.now;
+
 
 public class SimpleQueryTest extends CQLTester
 {
@@ -51,10 +61,51 @@ public class SimpleQueryTest extends CQLTester
     {
         createTable("CREATE TABLE %s (k text PRIMARY KEY, v1 text, v2 text) WITH COMPACT STORAGE");
 
-        execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "third", 3355443, "aaaaaaaaaaaa");
+        //execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "third", 3355443, "aaaaaaaaaaaa");
         execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "first", "aaaaaaaaaaaa", "aaaaaaaaaaaa");
-        execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "second", "aaaaaaaaaaab", "aaaaaaaaaaac");
+        //execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "second", "aaaaaaaaaaab", "aaaaaaaaaaab");
+
+        System.out.println("SELCET *:");
+        UntypedResultSet urs = execute("SELECT * FROM %s WHERE k = ?", "first");
+        for (ColumnSpecification element :urs.one().getColumns())
+        {
+            if(element != null)
+            System.out.println("Spaltenname: " + element.toString());
+        }
+
+        assertRows(execute("SELECT k, v1, v2 FROM %s WHERE k = ?", "first"),
+                   row("first", "aaaaaaaaaaaa", "aaaaaaaaaaaa")
+        );
+        //System.out.println((.one().getColumns().toArray()[0].toString());
     }
+
+    @Test
+    public void BlockchainTest() throws Throwable
+    {
+
+        // Create a blockchain table
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY, sorce text, destination text, value int) with comment = 'Blockchain'");
+        //Optional: ID als primari key für den Nutzer unsichtbar machen
+
+        // Transaction
+        execute("INSERT INTO %s (blockchainid, destination, value) values (?, ?, ?)", java.util.UUID.fromString("44c32fe1-38a4-11e1-a06a-485d60c81a3e"), "Alice", 3355443);
+        /* TODO This is the Goal
+        execute("INSERT INTO %s (id, sorce, destination, value) values (?, ?, ?, ?)", java.util.UUID.fromString("44c32fe1-38a4-11e1-a06a-485d60c81a3f"), "Alice", "Bob", "3355443");
+
+        //Validate calls
+        execute("VALIDATE TABLE %s");
+        */
+
+        System.out.println("SELCET *:");
+        UntypedResultSet urs = execute("SELECT * FROM %s WHERE destination = ? ALLOW FILTERING", "Alice" );
+        for (ColumnSpecification element :urs.one().getColumns())
+        {
+            if(element != null)
+                System.out.println("Spaltenname: " + element.toString());
+        }
+    }
+
+
 
     @Test
     public void testDynamicCompactTables() throws Throwable

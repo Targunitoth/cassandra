@@ -586,7 +586,6 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeInternal(QueryState queryState, QueryOptions options) throws RequestValidationException, RequestExecutionException
     {
-        //TODO Traceback 4
         //Timestamp gets set here!
         return hasConditions()
                ? executeInternalWithCondition(queryState, options)
@@ -595,7 +594,6 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime) throws RequestValidationException, RequestExecutionException
     {
-        //TODO Traceback 3
         for (IMutation mutation : getMutations(options, true, queryState.getTimestamp(), queryStartNanoTime))
         {
             //mutation contains the key
@@ -711,7 +709,6 @@ public abstract class ModificationStatement implements CQLStatement
 
                 if (!restrictions.hasClusteringColumnsRestrictions())
                 {
-                    //TODO Auf dem Weg
                     addUpdateForKey(upd, Clustering.EMPTY, params);
                 }
                 else

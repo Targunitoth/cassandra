@@ -113,6 +113,14 @@ public class ColumnIdentifier implements IMeasurableMemory, Comparable<ColumnIde
         this.interned = false;
     }
 
+    public ColumnIdentifier(String rawText, boolean keepCase, boolean interned)
+    {
+        this.text = keepCase ? rawText : rawText.toLowerCase(Locale.US);
+        this.bytes = ByteBufferUtil.bytes(this.text);
+        this.prefixComparison = prefixComparison(bytes);
+        this.interned = interned;
+    }
+
     public ColumnIdentifier(ByteBuffer bytes, AbstractType<?> type)
     {
         this(bytes, type.getString(bytes), false);

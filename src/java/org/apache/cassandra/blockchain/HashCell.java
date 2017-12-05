@@ -27,18 +27,16 @@ import org.apache.commons.lang3.StringUtils;
 
 public class HashCell
 {
-    ColumnMetadata column;
-    long timestamp;
-    ByteBuffer value;
     String sha256hex;
 
+    /***
+     * Test Class to generate the hash value over one cell
+     * @param column Column name
+     * @param timestamp Current timestamp
+     * @param value content of the cell
+     */
     public HashCell(ColumnMetadata column, long timestamp, ByteBuffer value)
     {
-        System.out.println("HashCell Called!");
-
-        this.column = column;
-        this.timestamp = timestamp;
-        this.value = value;
         String valueString = new String(value.array());
 
         //If there are non-printable characters, print the value in hex format
@@ -47,12 +45,12 @@ public class HashCell
             valueString = asHex(value.array());
         }
 
-        System.out.println("Timestamp: " + timestamp + "\tColumn: " + column + "\tValue: " + valueString);
+        //System.out.println("Timestamp: " + timestamp + "\tColumn: " + column + "\tValue: " + valueString);
 
         //TODO Add last block to SHA256
         //Generate SHA256
         sha256hex = org.apache.commons.codec.digest.DigestUtils.sha256Hex(column + "" + valueString + "" + timestamp);
-        System.out.println("SHA256: " + sha256hex);
+        //System.out.println("SHA256: " + sha256hex);
     }
 
     ///Helper variable for asHex
