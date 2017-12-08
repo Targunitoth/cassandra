@@ -25,6 +25,7 @@ import com.google.common.collect.Multiset;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.auth.*;
+import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.db.*;
@@ -395,37 +396,41 @@ public class CreateTableStatement extends SchemaAlteringStatement
 
         public void addDefinition(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
         {
-            definedNames.add(def);
-            definitions.put(def, type);
-            if (isStatic)
-                staticColumns.add(def);
-
+            addDef(def, type, isStatic);
             if(def.toString().toLowerCase().contains("blockchainid")){
                 System.out.println("Column name blockchainid was detected");
                 addBlockchainDefinition(isStatic);
+                HashBlock.identifier[0] = def;
+            }
+        }
+
+        private void addDef(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
+        {
+            //Überprüfe, dass keine Tabellen doppelt angelegt werden.
+            if(!definedNames.contains(def))
+            {
+                definedNames.add(def);
+                definitions.put(def, type);
+                if (isStatic)
+                    staticColumns.add(def);
             }
         }
 
         public void addBlockchainDefinition(boolean isStatic)
         {
-            System.out.println("addBlockchainDefinition was called");
-            ColumnIdentifier def = new ColumnIdentifier("predecessor", false, true);
-            CQL3Type.Raw type = CQL3Type.Raw.from(CQL3Type.Native.TIMEUUID);
+            //System.out.println("addBlockchainDefinition was called");
+            assert(HashBlock.tables.length == HashBlock.types.length);
+            assert HashBlock.identifier == null : "HashBlock identifier is already set. Multiple Tables with blockchain are currently not supported";
+            HashBlock.identifier = new ColumnIdentifier[HashBlock.tables.length];
 
-            definedNames.add(def);
-            definitions.put(def, type);
-            if (isStatic)
-                staticColumns.add(def);
-
-            def = new ColumnIdentifier("hash", false, true);
-            type =  CQL3Type.Raw.from(CQL3Type.Native.TEXT);
-
-            definedNames.add(def);
-            definitions.put(def, type);
-            if (isStatic)
-                staticColumns.add(def);
+            //Starte bei 1, da wir blockchainid schon angelegt haben
+            for(int i = 1; i < HashBlock.tables.length; i++)
+            {
+                HashBlock.identifier[i] = new ColumnIdentifier(HashBlock.tables[i], false, true);
+                CQL3Type.Raw type = CQL3Type.Raw.from(HashBlock.types[i]);
+                addDef(HashBlock.identifier[i], type, isStatic);
+            }
         }
-
 
 
         public void addKeyAliases(List<ColumnIdentifier> aliases)

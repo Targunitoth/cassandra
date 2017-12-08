@@ -794,5 +794,9 @@ public class BTreeRow extends AbstractRow
             reset();
             return row;
         }
+
+        public Object[] getAllCells(){
+            return getCells().getValues();
+        }
     }
 }

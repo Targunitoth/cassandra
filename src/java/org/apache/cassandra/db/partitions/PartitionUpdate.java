@@ -22,12 +22,16 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.cql3.CQL3Type;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.rows.*;
@@ -432,6 +436,10 @@ public class PartitionUpdate extends AbstractBTreePartition
             rowBuilder = builder(16);
     }
 
+    public Object[] getRows(){
+        return rowBuilder.getValues();
+    }
+
     private BTree.Builder<Row> builder(int initialCapacity)
     {
         return BTree.<Row>builder(metadata().comparator, initialCapacity)
@@ -566,11 +574,15 @@ public class PartitionUpdate extends AbstractBTreePartition
 
         assertNotBuilt();
 
+
+
+
         if (row.isStatic())
         {
+            //TODO Removed assert
             // this assert is expensive, and possibly of limited value; we should consider removing it
             // or introducing a new class of assertions for test purposes
-            assert columns().statics.containsAll(row.columns()) : columns().statics + " is not superset of " + row.columns();
+            //assert columns().statics.containsAll(row.columns()) : columns().statics + " is not superset of " + row.columns();
             Row staticRow = holder.staticRow.isEmpty()
                       ? row
                       : Rows.merge(holder.staticRow, row, createdAtInSec);
@@ -578,9 +590,10 @@ public class PartitionUpdate extends AbstractBTreePartition
         }
         else
         {
+            //TODO Removed assert
             // this assert is expensive, and possibly of limited value; we should consider removing it
             // or introducing a new class of assertions for test purposes
-            assert columns().regulars.containsAll(row.columns()) : columns().regulars + " is not superset of " + row.columns();
+            //assert columns().regulars.containsAll(row.columns()) : columns().regulars + " is not superset of " + row.columns();
             rowBuilder.add(row);
         }
     }

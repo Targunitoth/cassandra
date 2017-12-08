@@ -27,6 +27,7 @@ import org.apache.cassandra.db.DeletionTime;
 import org.apache.cassandra.db.LivenessInfo;
 import org.apache.cassandra.db.rows.Row.Builder;
 import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.btree.BTree;
 
 /**
  * Instrumented Builder implementation for testing the
@@ -87,5 +88,10 @@ public class RowBuilder implements Row.Builder
     public Row build()
     {
         throw new UnsupportedOperationException();
+    }
+
+    public Object[] getAllCells()
+    {
+        return cells.toArray();
     }
 }

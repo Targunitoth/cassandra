@@ -505,6 +505,8 @@ public interface Row extends Unfiltered, Collection<ColumnData>
          * @return the last row built by this builder.
          */
         public Row build();
+
+        public Object[] getAllCells();
     }
 
     /**

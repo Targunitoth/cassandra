@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.cql3.statements.SelectStatement;
 import org.apache.cassandra.db.*;
@@ -372,6 +373,14 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
         public String toString()
         {
             return data.toString();
+        }
+
+        public void printFormatet()
+        {
+            for (Map.Entry<String, ByteBuffer> entry : data.entrySet())
+            {
+                System.out.println("Column: " + entry.getKey() + " \t-> Value: " + FormatHelper.convertByteBufferToString(entry.getValue()));
+            }
         }
     }
 }

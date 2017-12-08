@@ -20,6 +20,7 @@ package org.apache.cassandra.cql3;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
@@ -151,8 +152,8 @@ public class UpdateParameters
         //TODO Hier wird der Wert der Zelle gesetzt.
         //TODO Hier ist der Inhalt der Zelle im Klartext
         Cell cell = ttl == LivenessInfo.NO_TTL
-                  ? BufferCell.live(column, timestamp, value, path)
-                  : BufferCell.expiring(column, timestamp, ttl, nowInSec, value, path);
+                    ? BufferCell.live(column, timestamp, value, path)
+                    : BufferCell.expiring(column, timestamp, ttl, nowInSec, value, path);
         builder.addCell(cell);
     }
 
@@ -213,7 +214,7 @@ public class UpdateParameters
      * the row does not exist. If some modifications (updates or deletions) have already been done the row returned
      * will be the result of the merge of the fetched row and of the pending mutations.</p>
      *
-     * @param key the partition key
+     * @param key        the partition key
      * @param clustering the row clustering
      * @return the prefetched row with the already performed modifications
      */
@@ -236,5 +237,28 @@ public class UpdateParameters
 
         return Rows.merge(prefetchedRow, pendingMutations, nowInSec)
                    .purge(DeletionPurger.PURGE_ALL, nowInSec, metadata.enforceStrictLiveness());
+    }
+
+    public void addBlockchainCell(Cell cell)
+    {
+        builder.addCell(cell);
+    }
+
+    public long getTimestamp(){
+        return timestamp;
+    }
+
+    public String[] getCellStings()
+    {
+        Object[] cells = builder.getAllCells();
+        String[] result = new String[cells.length];
+        int counter = 0;
+        for(Object cell : cells){
+            if(cell != null)
+            {
+                result[counter++] = FormatHelper.convertByteBufferToString(((Cell)cell).value());
+            }
+        }
+        return result;
     }
 }

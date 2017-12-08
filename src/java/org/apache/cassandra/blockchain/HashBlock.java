@@ -18,15 +18,97 @@
 
 package org.apache.cassandra.blockchain;
 
-import org.apache.cassandra.tracing.Tracing;
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
-//TODO Generate a hash over the complete block and save it in the database with the hash of the old Block
-//TODO Generate a timestamp
-//TODO Use SHA-256 like the bitcoin whitepaper
+import com.sun.jersey.api.NotFoundException;
+import org.apache.cassandra.cql3.CQL3Type;
+import org.apache.cassandra.cql3.ColumnIdentifier;
+import org.apache.cassandra.db.marshal.UTF8Type;
+
 public class HashBlock
 {
-    public HashBlock()
+    public final static String tables[] = { "blockchainid", "predecessor", "hash" };
+    public final static CQL3Type.Native types[] = { CQL3Type.Native.TIMEUUID, CQL3Type.Native.TIMEUUID, CQL3Type.Native.TEXT };
+    public static ColumnIdentifier identifier[];
+
+
+    private static final UUID nullBlock = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static UUID blockChainHead = null;
+    private static boolean writeableHead = false; //Zuerst muss einmal gelesen werden, bevor gesetzt werden kann.
+    private static String predecessorHash = "";
+
+
+    public static java.util.UUID getBlockChainHead()
     {
-        //System.out.println("HashBlock Called!");
+        //Am anfang ist der header leer, dann gib 0 zurück
+        if (blockChainHead == null)
+        {
+            return nullBlock;
+        }
+        else
+        {
+            return blockChainHead;
+        }
+    }
+
+    public static void setBlockChainHead(java.util.UUID newHead)
+    {
+        //Nach jedem Schreiben des Headers muss er erst wieder gelesen werden
+        blockChainHead = newHead;
+        //TODO Optional anounce new Head with gossip
+    }
+
+    public static ByteBuffer generateHash(UUID key, String[] cellValues, long timestamp)//insert Cell
+    {
+
+        String delimiter = "|";
+        String input = key.toString();
+        input += delimiter + "" + timestamp;
+
+        for (String item : cellValues)
+        {
+            input += delimiter + "" + item;
+        }
+
+        input += delimiter + "" + predecessorHash;
+
+        System.out.println("Hash calculation for: " + input);
+
+        String sha256hex = org.apache.commons.codec.digest.DigestUtils.sha256Hex(input);
+
+        //Set this key and hash as new predecessor
+        HashBlock.setBlockChainHead(key);
+        predecessorHash = sha256hex;
+
+        return UTF8Type.instance.decompose(sha256hex);
+    }
+
+    public static String getBlockchainIDString()
+    {
+        return tables[0];
+    }
+
+    public static ColumnIdentifier getIdentifer(String tablename) throws NotFoundException
+    {
+        int index = -1;
+        for (int i = 0; i < tables.length; i++)
+        {
+            if (tables[i].equals(tablename))
+            {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0 || index >= tables.length)
+        {
+            throw new NotFoundException();
+        }
+        return identifier[index];
+    }
+
+    public static UUID getNullBlock()
+    {
+        return nullBlock;
     }
 }

@@ -17,16 +17,12 @@
  */
 package org.apache.cassandra.cql3;
 
-import java.util.ListIterator;
 import java.util.UUID;
 
 import org.junit.Test;
 
-import org.apache.cassandra.db.marshal.TimeUUIDType;
-
-import static com.datastax.driver.core.DataType.timeuuid;
-import static com.datastax.driver.core.DataType.uuid;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.now;
+import com.datastax.driver.core.utils.UUIDs;
+import org.apache.cassandra.blockchain.FormatHelper;
 
 
 public class SimpleQueryTest extends CQLTester
@@ -84,26 +80,41 @@ public class SimpleQueryTest extends CQLTester
     {
 
         // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY, sorce text, destination text, value int) with comment = 'Blockchain'");
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY, predecessor text,  source text, destination text, value int) with comment = 'Blockchain'");
         //Optional: ID als primari key für den Nutzer unsichtbar machen
 
-        // Transaction
-        execute("INSERT INTO %s (blockchainid, destination, value) values (?, ?, ?)", java.util.UUID.fromString("44c32fe1-38a4-11e1-a06a-485d60c81a3e"), "Alice", 3355443);
-        /* TODO This is the Goal
-        execute("INSERT INTO %s (id, sorce, destination, value) values (?, ?, ?, ?)", java.util.UUID.fromString("44c32fe1-38a4-11e1-a06a-485d60c81a3f"), "Alice", "Bob", "3355443");
 
+        // Transaction
+        execute("INSERT INTO %s (blockchainid, destination, value) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 3355443);
+
+        execute("INSERT INTO %s (blockchainid, source, destination, value) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 3355443);
+
+        execute("INSERT INTO %s (blockchainid, source, destination, value) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice", 2222222);
+
+        /* TODO This is the Goal
         //Validate calls
         execute("VALIDATE TABLE %s");
         */
 
-        System.out.println("SELCET *:");
-        UntypedResultSet urs = execute("SELECT * FROM %s WHERE destination = ? ALLOW FILTERING", "Alice" );
+        /*System.out.println("SELCET *:");
+        UntypedResultSet urs = execute("SELECT * FROM %s WHERE destination = ? ALLOW FILTERING", "Bob" );
         for (ColumnSpecification element :urs.one().getColumns())
         {
             if(element != null)
+            {
                 System.out.println("Spaltenname: " + element.toString());
+                System.out.println("->Value: " + FormatHelper.convertByteBufferToString(urs.one().getBytes(element.toString())));
+            }
+        }*/
+
+        System.out.println("SELCET *:");
+        UntypedResultSet urs2 = execute("SELECT * FROM %s");
+        for(UntypedResultSet.Row row: urs2){
+            System.out.println("New Row:");
+            row.printFormatet();
         }
     }
+
 
 
 

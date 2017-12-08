@@ -26,6 +26,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
 
+import com.sun.corba.se.spi.ior.ObjectKey;
 import io.netty.util.Recycler;
 import org.apache.cassandra.utils.ObjectSizes;
 
@@ -1111,6 +1112,16 @@ public class BTree
             {
                 this.recycle();
             }
+        }
+
+        public Object[] getValues(){
+            Object[] result = new Object[count];
+            int counter = 0;
+            for(Object o : values){
+                if(o != null)
+                    result[counter++] = o;
+            }
+            return result;
         }
     }
 

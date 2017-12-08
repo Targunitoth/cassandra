@@ -17,18 +17,28 @@
  */
 package org.apache.cassandra.cql3.statements;
 
+import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.cql3.conditions.ColumnCondition;
 import org.apache.cassandra.cql3.conditions.Conditions;
 import org.apache.cassandra.cql3.restrictions.StatementRestrictions;
 import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.CompactTables;
+import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Slice;
+import org.apache.cassandra.db.marshal.UTF8Type;
+import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.Cell;
+import org.apache.cassandra.db.rows.CellPath;
+import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -65,6 +75,20 @@ public class UpdateStatement extends ModificationStatement
     @Override
     public void addUpdateForKey(PartitionUpdate update, Clustering clustering, UpdateParameters params)
     {
+        //TODO Maybe return if not insert.
+        System.out.println("Type of insert is: " + type.toString());
+
+
+        boolean hasBlockchainID = false;
+
+        //Check if blockchain is part of the key
+        for (ColumnMetadata key : metadata.partitionKeyColumns())
+        {
+            if(key.name.toString().contains(HashBlock.getBlockchainIDString())){
+                hasBlockchainID = true;
+            }
+        }
+
         if (updatesRegularRows())
         {
             params.newRow(clustering);
@@ -89,20 +113,65 @@ public class UpdateStatement extends ModificationStatement
                 updates = Collections.<Operation>singletonList(new Constants.Setter(metadata().compactValueColumn, EMPTY));
             }
 
-            for (Operation op : updates)
+
+            for (Operation op : updates){
                 op.execute(update.partitionKey(), params);
 
+                //Try to check for blockchain as part of the column
+                if(!hasBlockchainID && op.column.name.toString().contains(HashBlock.getBlockchainIDString())){
+                    hasBlockchainID = true;
+                }
+            }
+
+
+
+            //TODO Try Here to insert Blockchain
+            if(hasBlockchainID)
+            {
+                System.out.println("Blockchain Insert");
+                //Save current key
+                ByteBuffer key = update.partitionKey().getKey();
+
+
+                //Get old predecessor
+                ColumnMetadata columnMetadata = metadata.getColumn(HashBlock.getIdentifer("predecessor"));
+                long timestamp = params.getTimestamp();
+                java.util.UUID predecessor = HashBlock.getBlockChainHead();
+                ByteBuffer predecessorBuffer = UUIDType.instance.decompose(predecessor);
+                CellPath path = null;
+
+                //Write Cell
+                Cell cell = BufferCell.live(columnMetadata, timestamp, predecessorBuffer, path);
+                params.addBlockchainCell(cell);
+
+
+                //Calculate Hash
+                columnMetadata = metadata.getColumn(HashBlock.getIdentifer("hash"));
+                ByteBuffer hashBuffer = HashBlock.generateHash(UUIDType.instance.compose(key), params.getCellStings(), timestamp);
+
+                //Set Hash
+                cell = BufferCell.live(columnMetadata, timestamp, hashBuffer, path);
+                params.addBlockchainCell(cell);
+            }
+
             update.add(params.buildRow());
+            System.out.println("Update / Insert");
         }
+
+
 
         if (updatesStaticRow())
         {
-            //TODO Hier wird das Update/Insert ausgeführt
             params.newRow(Clustering.STATIC_CLUSTERING);
+
             for (Operation op : getStaticOperations())
+            {
                 op.execute(update.partitionKey(), params);
+            }
             update.add(params.buildRow());
         }
+
+
     }
 
     @Override
@@ -142,6 +211,7 @@ public class UpdateStatement extends ModificationStatement
                                                         Conditions conditions,
                                                         Attributes attrs)
         {
+            //TODO Check here for conditions
 
             // Created from an INSERT
             checkFalse(metadata.isCounter(), "INSERT statements are not allowed on counter tables, use UPDATE instead");

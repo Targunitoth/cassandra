@@ -600,7 +600,7 @@ public abstract class ModificationStatement implements CQLStatement
             mutation.apply();
 
             //Hook here for Blockchain test
-            HashBlock hb = new HashBlock();
+            //HashBlock hb = new HashBlock();
         }
         return null;
     }
@@ -650,7 +650,6 @@ public abstract class ModificationStatement implements CQLStatement
     {
         UpdatesCollector collector = new UpdatesCollector(Collections.singletonMap(metadata.id, updatedColumns), 1);
         addUpdates(collector, options, local, now, queryStartNanoTime);
-        //TODO Traceback 1
         collector.validateIndexedColumns();
 
         return collector.toMutations();

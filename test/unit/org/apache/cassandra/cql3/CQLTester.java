@@ -771,16 +771,6 @@ public abstract class CQLTester
             state.setKeyspace(SchemaConstants.SYSTEM_KEYSPACE_NAME);
             QueryState queryState = new QueryState(state);
 
-            /*//Change Query
-            if(query.contains("blockchainid")){
-                System.out.println("Blockchain Table will be created");
-                //TODO May change ugly "hax"
-                String blockchainstring = "blockchainid timeuuid PRIMARY KEY";
-                String[] tmp;
-                tmp = query.split(blockchainstring);
-                query = tmp[0] + blockchainstring + ", predecessor text" + tmp[1];
-            }*/
-
             ParsedStatement.Prepared prepared = QueryProcessor.parseStatement(query, queryState.getClientState());
             prepared.statement.validate(state);
 
