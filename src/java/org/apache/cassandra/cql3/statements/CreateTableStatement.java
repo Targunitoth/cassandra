@@ -397,7 +397,7 @@ public class CreateTableStatement extends SchemaAlteringStatement
         public void addDefinition(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
         {
             addDef(def, type, isStatic);
-            if(def.toString().toLowerCase().contains("blockchainid")){
+            if(def.toString().toLowerCase().contains(HashBlock.getBlockchainIDString())){
                 System.out.println("Column name blockchainid was detected");
                 addBlockchainDefinition(isStatic);
                 HashBlock.identifier[0] = def;

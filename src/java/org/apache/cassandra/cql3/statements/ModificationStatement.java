@@ -68,7 +68,7 @@ public abstract class ModificationStatement implements CQLStatement
     protected static final Logger logger = LoggerFactory.getLogger(ModificationStatement.class);
 
     public static final String CUSTOM_EXPRESSIONS_NOT_ALLOWED =
-        "Custom index expressions cannot be used in WHERE clauses for UPDATE or DELETE statements";
+    "Custom index expressions cannot be used in WHERE clauses for UPDATE or DELETE statements";
 
     private static final ColumnIdentifier CAS_RESULT_COLUMN = new ColumnIdentifier("[applied]", false);
 
@@ -290,7 +290,7 @@ public abstract class ModificationStatement implements CQLStatement
 
     public Iterable<ColumnMetadata> getColumnsWithConditions()
     {
-         return conditions.getColumns();
+        return conditions.getColumns();
     }
 
     public boolean hasIfNotExistCondition()
@@ -324,6 +324,7 @@ public abstract class ModificationStatement implements CQLStatement
 
     /**
      * Checks that the modification only apply to static columns.
+     *
      * @return <code>true</code> if the modification only apply to static columns, <code>false</code> otherwise.
      */
     private boolean appliesOnlyToStaticColumns()
@@ -333,13 +334,14 @@ public abstract class ModificationStatement implements CQLStatement
 
     /**
      * Checks that the specified operations and conditions only apply to static columns.
+     *
      * @return <code>true</code> if the specified operations and conditions only apply to static columns,
      * <code>false</code> otherwise.
      */
     public static boolean appliesOnlyToStaticColumns(Operations operation, Conditions conditions)
     {
         return !operation.appliesToRegularColumns() && !conditions.appliesToRegularColumns()
-                && (operation.appliesToStaticColumns() || conditions.appliesToStaticColumns());
+               && (operation.appliesToStaticColumns() || conditions.appliesToStaticColumns());
     }
 
     public boolean requiresRead()
@@ -431,8 +433,8 @@ public abstract class ModificationStatement implements CQLStatement
             throw new InvalidRequestException("Invalid empty consistency level");
 
         return hasConditions()
-             ? executeWithCondition(queryState, options, queryStartNanoTime)
-             : executeWithoutCondition(queryState, options, queryStartNanoTime);
+               ? executeWithCondition(queryState, options, queryStartNanoTime)
+               : executeWithoutCondition(queryState, options, queryStartNanoTime);
     }
 
     private ResultMessage executeWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime)
@@ -475,14 +477,14 @@ public abstract class ModificationStatement implements CQLStatement
         // We don't support IN for CAS operation so far
         checkFalse(restrictions.keyIsInRelation(),
                    "IN on the partition key is not supported with conditional %s",
-                   type.isUpdate()? "updates" : "deletions");
+                   type.isUpdate() ? "updates" : "deletions");
 
         DecoratedKey key = metadata().partitioner.decorateKey(keys.get(0));
         long now = options.getTimestamp(queryState);
 
         checkFalse(restrictions.clusteringKeyRestrictionsHasIN(),
                    "IN on the clustering key columns is not supported with conditional %s",
-                    type.isUpdate()? "updates" : "deletions");
+                   type.isUpdate() ? "updates" : "deletions");
 
         Clustering clustering = Iterables.getOnlyElement(createClustering(options));
         CQL3CasRequest request = new CQL3CasRequest(metadata(), key, false, conditionColumns(), updatesRegularRows(), updatesStaticRow());
@@ -571,15 +573,14 @@ public abstract class ModificationStatement implements CQLStatement
                 Iterables.addAll(defs, metadata.primaryKeyColumns());
             Iterables.addAll(defs, columnsWithConditions);
             selection = Selection.forColumns(metadata, new ArrayList<>(defs));
-
         }
 
         Selectors selectors = selection.newSelectors(options);
         ResultSetBuilder builder = new ResultSetBuilder(selection.getResultMetadata(), selectors);
         SelectStatement.forSelection(metadata, selection).processPartition(partition,
-                                                                      options,
-                                                                      builder,
-                                                                      FBUtilities.nowInSeconds());
+                                                                           options,
+                                                                           builder,
+                                                                           FBUtilities.nowInSeconds());
 
         return builder.build();
     }
@@ -596,11 +597,7 @@ public abstract class ModificationStatement implements CQLStatement
     {
         for (IMutation mutation : getMutations(options, true, queryState.getTimestamp(), queryStartNanoTime))
         {
-            //mutation contains the key
             mutation.apply();
-
-            //Hook here for Blockchain test
-            //HashBlock hb = new HashBlock();
         }
         return null;
     }
@@ -641,9 +638,8 @@ public abstract class ModificationStatement implements CQLStatement
      * Convert statement into a list of mutations to apply on the server
      *
      * @param options value for prepared statement markers
-     * @param local if true, any requests (for collections) performed by getMutation should be done locally only.
-     * @param now the current timestamp in microseconds to use if no timestamp is user provided.
-     *
+     * @param local   if true, any requests (for collections) performed by getMutation should be done locally only.
+     * @param now     the current timestamp in microseconds to use if no timestamp is user provided.
      * @return list of the mutations
      */
     private Collection<? extends IMutation> getMutations(QueryOptions options, boolean local, long now, long queryStartNanoTime)
@@ -714,13 +710,13 @@ public abstract class ModificationStatement implements CQLStatement
                 {
                     for (Clustering clustering : clusterings)
                     {
-                       for (ByteBuffer c : clustering.getRawValues())
-                       {
-                           if (c != null && c.remaining() > FBUtilities.MAX_UNSIGNED_SHORT)
-                               throw new InvalidRequestException(String.format("Key length of %d is longer than maximum of %d",
-                                                                               clustering.dataSize(),
-                                                                               FBUtilities.MAX_UNSIGNED_SHORT));
-                       }
+                        for (ByteBuffer c : clustering.getRawValues())
+                        {
+                            if (c != null && c.remaining() > FBUtilities.MAX_UNSIGNED_SHORT)
+                                throw new InvalidRequestException(String.format("Key length of %d is longer than maximum of %d",
+                                                                                clustering.dataSize(),
+                                                                                FBUtilities.MAX_UNSIGNED_SHORT));
+                        }
 
                         addUpdateForKey(upd, clustering, params);
                     }
@@ -817,8 +813,6 @@ public abstract class ModificationStatement implements CQLStatement
             this.conditions = conditions == null ? Collections.<Pair<ColumnMetadata.Raw, ColumnCondition.Raw>>emptyList() : conditions;
             this.ifNotExists = ifNotExists;
             this.ifExists = ifExists;
-
-
         }
 
         public ParsedStatement.Prepared prepare()
@@ -844,7 +838,7 @@ public abstract class ModificationStatement implements CQLStatement
         /**
          * Returns the column conditions.
          *
-         * @param metadata the column family meta data
+         * @param metadata   the column family meta data
          * @param boundNames the bound names
          * @return the column conditions.
          */
@@ -875,7 +869,7 @@ public abstract class ModificationStatement implements CQLStatement
         /**
          * Returns the column conditions.
          *
-         * @param metadata the column family meta data
+         * @param metadata   the column family meta data
          * @param boundNames the bound names
          * @return the column conditions.
          */
@@ -905,10 +899,10 @@ public abstract class ModificationStatement implements CQLStatement
         /**
          * Creates the restrictions.
          *
-         * @param metadata the column family meta data
+         * @param metadata   the column family meta data
          * @param boundNames the bound names
          * @param operations the column operations
-         * @param where the where clause
+         * @param where      the where clause
          * @param conditions the conditions
          * @return the restrictions
          */
@@ -929,7 +923,7 @@ public abstract class ModificationStatement implements CQLStatement
          * Retrieves the <code>ColumnMetadata</code> corresponding to the specified raw <code>ColumnIdentifier</code>.
          *
          * @param metadata the column family meta data
-         * @param rawId the raw <code>ColumnIdentifier</code>
+         * @param rawId    the raw <code>ColumnIdentifier</code>
          * @return the <code>ColumnMetadata</code> corresponding to the specified raw <code>ColumnIdentifier</code>
          */
         protected static ColumnMetadata getColumnDefinition(TableMetadata metadata, Raw rawId)

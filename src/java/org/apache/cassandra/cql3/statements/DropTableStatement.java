@@ -43,7 +43,6 @@ public class DropTableStatement extends SchemaAlteringStatement
 
     public void checkAccess(ClientState state) throws UnauthorizedException, InvalidRequestException
     {
-        //TODO Shall this be kept?
         try
         {
             state.hasColumnFamilyAccess(keyspace(), columnFamily(), Permission.DROP);
