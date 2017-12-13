@@ -18,7 +18,60 @@
 
 package org.apache.cassandra.blockchain;
 
-//TODO Generate a routine to verify if the HashChain is unbroken
-public class VerifyHash
+import java.nio.ByteBuffer;
+
+import org.apache.cassandra.schema.Schema;
+import org.apache.cassandra.schema.TableMetadata;
+
+public abstract class VerifyHash
 {
+    //Global Variables
+    protected static TableMetadata metadata;
+    protected static String tableName;
+
+    protected static void setTableName(String tblName)
+    {
+        tableName = tblName;
+    }
+
+    protected static void loadMetadata()
+    {
+        String[] tableNameSplit = tableName.split("\\.");
+        metadata = Schema.instance.validateTable(tableNameSplit[0], tableNameSplit[1]);
+    }
+
+    protected static ByteBuffer[] removeEmptyCells(ByteBuffer[] array)
+    {
+        ByteBuffer[] result;
+        int counter = 0;
+        boolean shrinkSize = false;
+        for (ByteBuffer bb : array)
+        {
+            if (bb != null)
+            {
+                counter++;
+            }
+            else
+            {
+                shrinkSize = true;
+            }
+        }
+        if (shrinkSize)
+        {
+            result = new ByteBuffer[counter];
+            counter = 0;
+            for (ByteBuffer bb : array)
+            {
+                if (bb != null)
+                {
+                    result[counter++] = bb;
+                }
+            }
+            return result;
+        }
+        else
+        {
+            return array;
+        }
+    }
 }

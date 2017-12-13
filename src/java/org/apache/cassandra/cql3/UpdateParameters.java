@@ -150,7 +150,6 @@ public class UpdateParameters
     public void addCell(ColumnMetadata column, CellPath path, ByteBuffer value) throws InvalidRequestException
     {
         //TODO Hier wird der Wert der Zelle gesetzt.
-        //TODO Hier ist der Inhalt der Zelle im Klartext
         Cell cell = ttl == LivenessInfo.NO_TTL
                     ? BufferCell.live(column, timestamp, value, path)
                     : BufferCell.expiring(column, timestamp, ttl, nowInSec, value, path);
@@ -244,19 +243,21 @@ public class UpdateParameters
         builder.addCell(cell);
     }
 
-    public long getTimestamp(){
+    public long getTimestamp()
+    {
         return timestamp;
     }
 
-    public String[] getCellStings()
+    public ByteBuffer[] getCellValues()
     {
         Object[] cells = builder.getAllCells();
-        String[] result = new String[cells.length];
+        ByteBuffer[] result = new ByteBuffer[cells.length];
         int counter = 0;
-        for(Object cell : cells){
-            if(cell != null)
+        for (Object cell : cells)
+        {
+            if (cell != null)
             {
-                result[counter++] = FormatHelper.convertByteBufferToString(((Cell)cell).value());
+                result[counter++] = ((Cell) cell).value();
             }
         }
         return result;

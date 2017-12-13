@@ -37,18 +37,18 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, v1, v2) values (?, ?, ?)", "third", 3, "value3");
 
         assertRows(execute("SELECT * FROM %s WHERE k = ?", "first"),
-            row("first", 1, "value1")
+                   row("first", 1, "value1")
         );
 
         assertRows(execute("SELECT v2 FROM %s WHERE k = ?", "second"),
-            row("value2")
+                   row("value2")
         );
 
         // Murmur3 order
         assertRows(execute("SELECT * FROM %s"),
-            row("third",  3, "value3"),
-            row("second", 2, "value2"),
-            row("first",  1, "value1")
+                   row("third", 3, "value3"),
+                   row("second", 2, "value2"),
+                   row("first", 1, "value1")
         );
     }
 
@@ -63,10 +63,10 @@ public class SimpleQueryTest extends CQLTester
 
         System.out.println("SELCET *:");
         UntypedResultSet urs = execute("SELECT * FROM %s WHERE k = ?", "first");
-        for (ColumnSpecification element :urs.one().getColumns())
+        for (ColumnSpecification element : urs.one().getColumns())
         {
-            if(element != null)
-            System.out.println("Spaltenname: " + element.toString());
+            if (element != null)
+                System.out.println("Spaltenname: " + element.toString());
         }
 
         assertRows(execute("SELECT k, v1, v2 FROM %s WHERE k = ?", "first"),
@@ -78,44 +78,28 @@ public class SimpleQueryTest extends CQLTester
     @Test
     public void BlockchainTest() throws Throwable
     {
-
         // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY, predecessor text,  source text, destination text, value int) with comment = 'Blockchain'");
-        //Optional: ID als primari key für den Nutzer unsichtbar machen
-
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
 
         // Transaction
-        execute("INSERT INTO %s (blockchainid, destination, value) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 3355443);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, value) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 3355443);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, value) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice", 2222222);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice2", 50);
 
-        /* TODO This is the Goal
-        //Validate calls
+        // Validate calls
         execute("VALIDATE TABLE %s");
-        */
 
-        /*System.out.println("SELCET *:");
-        UntypedResultSet urs = execute("SELECT * FROM %s WHERE destination = ? ALLOW FILTERING", "Bob" );
-        for (ColumnSpecification element :urs.one().getColumns())
-        {
-            if(element != null)
-            {
-                System.out.println("Spaltenname: " + element.toString());
-                System.out.println("->Value: " + FormatHelper.convertByteBufferToString(urs.one().getBytes(element.toString())));
-            }
-        }*/
-
+        // Print all data
         System.out.println("SELCET *:");
         UntypedResultSet urs2 = execute("SELECT * FROM %s");
-        for(UntypedResultSet.Row row: urs2){
+        for (UntypedResultSet.Row row : urs2)
+        {
             System.out.println("New Row:");
             row.printFormatet();
         }
     }
-
-
 
 
     @Test
@@ -133,41 +117,41 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, t, v) values (?, ?, ?)", "key", 5, "v15");
 
         assertRows(execute("SELECT * FROM %s"),
-            row("key",  1, "v11"),
-            row("key",  2, "v12"),
-            row("key",  3, "v13"),
-            row("key",  4, "v14"),
-            row("key",  5, "v15")
+                   row("key", 1, "v11"),
+                   row("key", 2, "v12"),
+                   row("key", 3, "v13"),
+                   row("key", 4, "v14"),
+                   row("key", 5, "v15")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ?", "key", 3),
-            row("key",  4, "v14"),
-            row("key",  5, "v15")
+                   row("key", 4, "v14"),
+                   row("key", 5, "v15")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ?", "key", 2, 4),
-            row("key",  2, "v12"),
-            row("key",  3, "v13")
+                   row("key", 2, "v12"),
+                   row("key", 3, "v13")
         );
 
         // Reversed queries
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? ORDER BY t DESC", "key"),
-            row("key",  5, "v15"),
-            row("key",  4, "v14"),
-            row("key",  3, "v13"),
-            row("key",  2, "v12"),
-            row("key",  1, "v11")
+                   row("key", 5, "v15"),
+                   row("key", 4, "v14"),
+                   row("key", 3, "v13"),
+                   row("key", 2, "v12"),
+                   row("key", 1, "v11")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ? ORDER BY t DESC", "key", 3),
-            row("key",  5, "v15"),
-            row("key",  4, "v14")
+                   row("key", 5, "v15"),
+                   row("key", 4, "v14")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ? ORDER BY t DESC", "key", 2, 4),
-            row("key",  3, "v13"),
-            row("key",  2, "v12")
+                   row("key", 3, "v13"),
+                   row("key", 2, "v12")
         );
     }
 
@@ -183,17 +167,17 @@ public class SimpleQueryTest extends CQLTester
         flush();
 
         assertRows(execute("SELECT * FROM %s WHERE k = ?", "first"),
-            row("first", 1, "value1")
+                   row("first", 1, "value1")
         );
 
         assertRows(execute("SELECT v2 FROM %s WHERE k = ?", "second"),
-            row("value2")
+                   row("value2")
         );
 
         assertRows(execute("SELECT * FROM %s"),
-            row("third",  3, "value3"),
-            row("second", 2, "value2"),
-            row("first",  1, "value1")
+                   row("third", 3, "value3"),
+                   row("second", 2, "value2"),
+                   row("first", 1, "value1")
         );
     }
 
@@ -212,41 +196,41 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, t, v1, v2) values (?, ?, ?, ?)", "key", 5, "v15", "v25");
 
         assertRows(execute("SELECT * FROM %s"),
-            row("key",  1, "v11", "v21"),
-            row("key",  2, "v12", "v22"),
-            row("key",  3, "v13", "v23"),
-            row("key",  4, "v14", "v24"),
-            row("key",  5, "v15", "v25")
+                   row("key", 1, "v11", "v21"),
+                   row("key", 2, "v12", "v22"),
+                   row("key", 3, "v13", "v23"),
+                   row("key", 4, "v14", "v24"),
+                   row("key", 5, "v15", "v25")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ?", "key", 3),
-            row("key",  4, "v14", "v24"),
-            row("key",  5, "v15", "v25")
+                   row("key", 4, "v14", "v24"),
+                   row("key", 5, "v15", "v25")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ?", "key", 2, 4),
-            row("key",  2, "v12", "v22"),
-            row("key",  3, "v13", "v23")
+                   row("key", 2, "v12", "v22"),
+                   row("key", 3, "v13", "v23")
         );
 
         // Reversed queries
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? ORDER BY t DESC", "key"),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24"),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22"),
-            row("key",  1, "v11", "v21")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24"),
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22"),
+                   row("key", 1, "v11", "v21")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ? ORDER BY t DESC", "key", 3),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ? ORDER BY t DESC", "key", 2, 4),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22")
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22")
         );
     }
 
@@ -265,49 +249,49 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, t, v1, v2) values (?, ?, ?, ?)", "key", 5, "v15", "v25");
 
         assertRows(execute("SELECT * FROM %s"),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24"),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22"),
-            row("key",  1, "v11", "v21")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24"),
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22"),
+                   row("key", 1, "v11", "v21")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? ORDER BY t ASC", "key"),
-            row("key",  1, "v11", "v21"),
-            row("key",  2, "v12", "v22"),
-            row("key",  3, "v13", "v23"),
-            row("key",  4, "v14", "v24"),
-            row("key",  5, "v15", "v25")
+                   row("key", 1, "v11", "v21"),
+                   row("key", 2, "v12", "v22"),
+                   row("key", 3, "v13", "v23"),
+                   row("key", 4, "v14", "v24"),
+                   row("key", 5, "v15", "v25")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ?", "key", 3),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ?", "key", 2, 4),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22")
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22")
         );
 
         // Reversed queries
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? ORDER BY t DESC", "key"),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24"),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22"),
-            row("key",  1, "v11", "v21")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24"),
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22"),
+                   row("key", 1, "v11", "v21")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t > ? ORDER BY t DESC", "key", 3),
-            row("key",  5, "v15", "v25"),
-            row("key",  4, "v14", "v24")
+                   row("key", 5, "v15", "v25"),
+                   row("key", 4, "v14", "v24")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t >= ? AND t < ? ORDER BY t DESC", "key", 2, 4),
-            row("key",  3, "v13", "v23"),
-            row("key",  2, "v12", "v22")
+                   row("key", 3, "v13", "v23"),
+                   row("key", 2, "v12", "v22")
         );
     }
 
@@ -324,23 +308,23 @@ public class SimpleQueryTest extends CQLTester
         flush();
 
         assertRows(execute("SELECT * FROM %s"),
-            row("key",  "v1", 1, "v1"),
-            row("key",  "v1", 2, "v2"),
-            row("key",  "v2", 1, "v3"),
-            row("key",  "v2", 2, "v4"),
-            row("key",  "v2", 3, "v5")
+                   row("key", "v1", 1, "v1"),
+                   row("key", "v1", 2, "v2"),
+                   row("key", "v2", 1, "v3"),
+                   row("key", "v2", 2, "v4"),
+                   row("key", "v2", 3, "v5")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t1 >= ?", "key", "v2"),
-            row("key",  "v2", 1, "v3"),
-            row("key",  "v2", 2, "v4"),
-            row("key",  "v2", 3, "v5")
+                   row("key", "v2", 1, "v3"),
+                   row("key", "v2", 2, "v4"),
+                   row("key", "v2", 3, "v5")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t1 >= ? ORDER BY t1 DESC", "key", "v2"),
-            row("key",  "v2", 3, "v5"),
-            row("key",  "v2", 2, "v4"),
-            row("key",  "v2", 1, "v3")
+                   row("key", "v2", 3, "v5"),
+                   row("key", "v2", 2, "v4"),
+                   row("key", "v2", 1, "v3")
         );
     }
 
@@ -383,7 +367,7 @@ public class SimpleQueryTest extends CQLTester
         for (int i = 0; i < N / 2; i++)
             execute("DELETE FROM %s WHERE k=? AND t=?", "key", i * 2);
 
-        Object[][] expected = new Object[N/2][];
+        Object[][] expected = new Object[N / 2][];
         for (int i = 0; i < N / 2; i++)
         {
             int t = i * 2 + 1;
@@ -410,7 +394,7 @@ public class SimpleQueryTest extends CQLTester
 
         flush();
 
-        Object[][] expected = new Object[2*N][];
+        Object[][] expected = new Object[2 * N][];
         for (int t2 = 0; t2 < N; t2++)
         {
             expected[t2] = row("key", 0, t2, "someSemiLargeTextForValue_0_" + t2);
@@ -437,14 +421,14 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, t, v) values (?, ?, ?)", "key2", 3, "bar");
 
         assertRows(execute("SELECT * FROM %s WHERE v = ?", "foo"),
-            row("key1",  1, "foo"),
-            row("key2",  1, "foo"),
-            row("key2",  2, "foo")
+                   row("key1", 1, "foo"),
+                   row("key2", 1, "foo"),
+                   row("key2", 2, "foo")
         );
 
         assertRows(execute("SELECT * FROM %s WHERE v = ?", "bar"),
-            row("key1",  2, "bar"),
-            row("key2",  3, "bar")
+                   row("key1", 2, "bar"),
+                   row("key2", 3, "bar")
         );
     }
 
@@ -469,35 +453,35 @@ public class SimpleQueryTest extends CQLTester
 
 
         assertRows(execute("SELECT * FROM %s"),
-            row("key1",  1, "st5", "foo1"),
-            row("key1",  2, "st5", "foo2"),
-            row("key1",  3, "st5", "foo3"),
-            row("key1",  4, "st5", "foo4"),
-            row("key1",  5, "st5", "foo5"),
-            row("key1",  6, "st5", "foo6")
+                   row("key1", 1, "st5", "foo1"),
+                   row("key1", 2, "st5", "foo2"),
+                   row("key1", 3, "st5", "foo3"),
+                   row("key1", 4, "st5", "foo4"),
+                   row("key1", 5, "st5", "foo5"),
+                   row("key1", 6, "st5", "foo6")
         );
 
         assertRows(execute("SELECT s FROM %s WHERE k = ?", "key1"),
-            row("st5"),
-            row("st5"),
-            row("st5"),
-            row("st5"),
-            row("st5"),
-            row("st5")
+                   row("st5"),
+                   row("st5"),
+                   row("st5"),
+                   row("st5"),
+                   row("st5"),
+                   row("st5")
         );
 
         assertRows(execute("SELECT DISTINCT s FROM %s WHERE k = ?", "key1"),
-            row("st5")
+                   row("st5")
         );
 
         assertEmpty(execute("SELECT * FROM %s WHERE k = ? AND t > ? AND t < ?", "key1", 7, 5));
         assertEmpty(execute("SELECT * FROM %s WHERE k = ? AND t > ? AND t < ? ORDER BY t DESC", "key1", 7, 5));
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t = ?", "key1", 2),
-            row("key1", 2, "st5", "foo2"));
+                   row("key1", 2, "st5", "foo2"));
 
         assertRows(execute("SELECT * FROM %s WHERE k = ? AND t = ? ORDER BY t DESC", "key1", 2),
-            row("key1", 2, "st5", "foo2"));
+                   row("key1", 2, "st5", "foo2"));
     }
 
     @Test
@@ -515,8 +499,8 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, t, v) values (?, ?, ?)", "key2", 5, "foo5");
 
         assertRows(execute("SELECT DISTINCT k FROM %s"),
-            row("key1"),
-            row("key2")
+                   row("key1"),
+                   row("key2")
         );
     }
 
@@ -532,7 +516,7 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, s) VALUES (?, ?)", 1, set(2));
 
         assertRows(execute("SELECT s FROM %s WHERE k = ?", 1),
-            row(set(2))
+                   row(set(2))
         );
     }
 
@@ -547,8 +531,8 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, v) VALUES (?, ?)", 3, 3);
 
         assertRows(execute("SELECT v FROM %s WHERE k IN ? LIMIT ?", list(0, 1, 2, 3), 2),
-            row(0),
-            row(1)
+                   row(0),
+                   row(1)
         );
     }
 
@@ -571,7 +555,6 @@ public class SimpleQueryTest extends CQLTester
     }
 
 
-
     @Test
     public void staticDistinctTest() throws Throwable
     {
@@ -581,14 +564,14 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, p) VALUES (?, ?)", 1, 2);
 
         assertRows(execute("SELECT k, s FROM %s"),
-            row(1, null),
-            row(1, null)
+                   row(1, null),
+                   row(1, null)
         );
         assertRows(execute("SELECT DISTINCT k, s FROM %s"),
-            row(1, null)
+                   row(1, null)
         );
         assertRows(execute("SELECT DISTINCT s FROM %s WHERE k=?", 1),
-            row((Object)null)
+                   row((Object) null)
         );
         assertEmpty(execute("SELECT DISTINCT s FROM %s WHERE k=?", 2));
     }
@@ -597,9 +580,9 @@ public class SimpleQueryTest extends CQLTester
     public void testCompactStorageUpdateWithNull() throws Throwable
     {
         createTable("CREATE TABLE %s (partitionKey int," +
-                "clustering_1 int," +
-                "value int," +
-                " PRIMARY KEY (partitionKey, clustering_1)) WITH COMPACT STORAGE");
+                    "clustering_1 int," +
+                    "value int," +
+                    " PRIMARY KEY (partitionKey, clustering_1)) WITH COMPACT STORAGE");
 
         execute("INSERT INTO %s (partitionKey, clustering_1, value) VALUES (0, 0, 0)");
         execute("INSERT INTO %s (partitionKey, clustering_1, value) VALUES (0, 1, 1)");
@@ -609,7 +592,7 @@ public class SimpleQueryTest extends CQLTester
         execute("UPDATE %s SET value = ? WHERE partitionKey = ? AND clustering_1 = ?", null, 0, 0);
 
         assertRows(execute("SELECT * FROM %s WHERE partitionKey = ? AND (clustering_1) IN ((?), (?))", 0, 0, 1),
-            row(0, 1, 1)
+                   row(0, 1, 1)
         );
     }
 
@@ -624,8 +607,8 @@ public class SimpleQueryTest extends CQLTester
         execute("INSERT INTO %s (k, c1, c2, v) VALUES (?, ?, ?, ?)", 0, 1, 0, 0);
 
         assertRows(execute("SELECT * FROM %s WHERE v=?", 0),
-            row(0, 0, 0, 0),
-            row(0, 1, 0, 0)
+                   row(0, 0, 0, 0),
+                   row(0, 1, 0, 0)
         );
 
         flush();
@@ -635,11 +618,13 @@ public class SimpleQueryTest extends CQLTester
         flush();
 
         assertRows(execute("SELECT * FROM %s WHERE v=?", 0),
-            row(0, 0, 0, 0)
+                   row(0, 0, 0, 0)
         );
     }
 
-    /** Test for Cassandra issue 10958 **/
+    /**
+     * Test for Cassandra issue 10958
+     **/
     @Test
     public void restrictionOnRegularColumnWithStaticColumnPresentTest() throws Throwable
     {
@@ -650,13 +635,13 @@ public class SimpleQueryTest extends CQLTester
         execute("UPDATE %s SET age=? WHERE id=?", 3, 3);
 
         assertRows(execute("SELECT * FROM %s"),
-            row(1, 1, 1, 1),
-            row(2, 2, 2, 2),
-            row(3, null, 3, null)
+                   row(1, 1, 1, 1),
+                   row(2, 2, 2, 2),
+                   row(3, null, 3, null)
         );
 
         assertRows(execute("SELECT * FROM %s WHERE extra > 1 ALLOW FILTERING"),
-            row(2, 2, 2, 2)
+                   row(2, 2, 2, 2)
         );
     }
 

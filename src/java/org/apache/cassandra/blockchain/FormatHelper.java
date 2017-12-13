@@ -29,9 +29,10 @@ public class FormatHelper
      * @param sb ByteBuffer to convert
      * @return Sting or hex String
      */
-    public static String convertByteBufferToString(ByteBuffer sb) {
-        if(sb == null || !sb.hasArray())
-            return "<empty>";
+    public static String convertByteBufferToString(ByteBuffer sb)
+    {
+        if (sb == null || !sb.hasArray())
+            return "<empty>"; //TODO Return ""
         String valueString = new String(sb.array());
 
         //If there are non-printable characters, print the value in hex format
@@ -59,5 +60,21 @@ public class FormatHelper
             chars[2 * i + 1] = HEX_CHARS[buf[i] & 0x0F];
         }
         return "0x" + new String(chars);
+    }
+
+    /***
+     * Concatenate two ByteBuffer Arrays
+     * @param a first ByteBuffer Array
+     * @param b second ByteBuffer Array
+     * @return Concatenated ByteBuffer Array
+     */
+    public static ByteBuffer[] concat(ByteBuffer[] a, ByteBuffer[] b)
+    {
+        int aLen = a.length;
+        int bLen = b.length;
+        ByteBuffer[] c = new ByteBuffer[aLen + bLen];
+        System.arraycopy(a, 0, c, 0, aLen);
+        System.arraycopy(b, 0, c, aLen, bLen);
+        return c;
     }
 }

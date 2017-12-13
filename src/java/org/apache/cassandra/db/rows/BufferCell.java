@@ -19,8 +19,6 @@ package org.apache.cassandra.db.rows;
 
 import java.nio.ByteBuffer;
 
-import org.apache.cassandra.blockchain.HashBlock;
-import org.apache.cassandra.blockchain.HashCell;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.db.marshal.ByteType;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -38,12 +36,6 @@ public class BufferCell extends AbstractCell
     private final ByteBuffer value;
     private final CellPath path;
 
-    //Insert values for the blockchain
-    private final ByteBuffer sha256;
-    private final int leftKey;
-    private final int rigthKey;
-    private final int hashValue;
-
     public BufferCell(ColumnMetadata column, long timestamp, int ttl, int localDeletionTime, ByteBuffer value, CellPath path)
     {
         super(column);
@@ -54,18 +46,6 @@ public class BufferCell extends AbstractCell
         this.localDeletionTime = localDeletionTime;
         this.value = value;
         this.path = path;
-
-        //Hook here for Blockchain for every Cell
-        HashCell hc = new HashCell(column, timestamp, value);
-        sha256 = hc.getSha256ByteBuffer();
-
-        //TODO Save hash as part of the cell
-
-        //Blockchain values are set
-        this.leftKey = 0;
-        this.rigthKey = 0;
-        this.hashValue = 0;
-
     }
 
     public static BufferCell live(ColumnMetadata column, long timestamp, ByteBuffer value)

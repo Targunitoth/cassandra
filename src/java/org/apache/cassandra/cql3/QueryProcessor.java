@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
@@ -35,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.*;
+import org.apache.cassandra.blockchain.VerifyHashIterative;
+import org.apache.cassandra.blockchain.VerifyHashRecursive;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.schema.Schema;
@@ -82,18 +85,18 @@ public class QueryProcessor implements QueryHandler
     static
     {
         preparedStatements = Caffeine.newBuilder()
-                             .executor(MoreExecutors.directExecutor())
-                             .maximumWeight(capacityToBytes(DatabaseDescriptor.getPreparedStatementsCacheSizeMB()))
-                             .weigher(QueryProcessor::measure)
-                             .removalListener((key, prepared, cause) -> {
-                                 MD5Digest md5Digest = (MD5Digest) key;
-                                 if (cause.wasEvicted())
-                                 {
-                                     metrics.preparedStatementsEvicted.inc();
-                                     lastMinuteEvictionsCount.incrementAndGet();
-                                     SystemKeyspace.removePreparedStatement(md5Digest);
-                                 }
-                             }).build();
+                                     .executor(MoreExecutors.directExecutor())
+                                     .maximumWeight(capacityToBytes(DatabaseDescriptor.getPreparedStatementsCacheSizeMB()))
+                                     .weigher(QueryProcessor::measure)
+                                     .removalListener((key, prepared, cause) -> {
+                                         MD5Digest md5Digest = (MD5Digest) key;
+                                         if (cause.wasEvicted())
+                                         {
+                                             metrics.preparedStatementsEvicted.inc();
+                                             lastMinuteEvictionsCount.incrementAndGet();
+                                             SystemKeyspace.removePreparedStatement(md5Digest);
+                                         }
+                                     }).build();
 
         ScheduledExecutors.scheduledTasks.scheduleAtFixedRate(() -> {
             long count = lastMinuteEvictionsCount.getAndSet(0);
@@ -154,6 +157,7 @@ public class QueryProcessor implements QueryHandler
 
     /**
      * Clears the prepared statement cache.
+     *
      * @param memoryOnly {@code true} if only the in memory caches must be cleared, {@code false} otherwise.
      */
     @VisibleForTesting
@@ -252,7 +256,7 @@ public class QueryProcessor implements QueryHandler
     {
         ResultMessage result = instance.process(query, QueryState.forInternalCalls(), QueryOptions.forInternalCalls(cl, values), System.nanoTime());
         if (result instanceof ResultMessage.Rows)
-            return UntypedResultSet.create(((ResultMessage.Rows)result).result);
+            return UntypedResultSet.create(((ResultMessage.Rows) result).result);
         else
             return null;
     }
@@ -272,7 +276,7 @@ public class QueryProcessor implements QueryHandler
         {
             Object value = values[i];
             AbstractType type = prepared.boundNames.get(i).type;
-            boundValues.add(value instanceof ByteBuffer || value == null ? (ByteBuffer)value : type.decompose(value));
+            boundValues.add(value instanceof ByteBuffer || value == null ? (ByteBuffer) value : type.decompose(value));
         }
         return QueryOptions.forInternalCalls(cl, boundValues);
     }
@@ -292,10 +296,36 @@ public class QueryProcessor implements QueryHandler
 
     public static UntypedResultSet executeInternal(String query, Object... values)
     {
+        //TODO Hack here for validate Blockchain
+        if (query.startsWith("VALIDATE TABLE"))
+        {
+            String tableName = query.replace("VALIDATE TABLE", "").trim();
+
+            //Validate Iterative
+            if (VerifyHashIterative.verify(tableName))
+            {
+                System.out.println("BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
+            }
+            else
+            {
+                System.out.println("BLOCKCHAIN VERIFICATION FAILED!");
+            }
+
+            //Validate Recursive
+            if (VerifyHashRecursive.verify(tableName))
+            {
+                System.out.println("RECURSIVE BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
+            }
+            else
+            {
+                System.out.println("RECURSIVE BLOCKCHAIN VERIFICATION FAILED!");
+            }
+            return null;
+        }
         ParsedStatement.Prepared prepared = prepareInternal(query);
         ResultMessage result = prepared.statement.executeInternal(internalQueryState(), makeInternalOptions(prepared, values));
         if (result instanceof ResultMessage.Rows)
-            return UntypedResultSet.create(((ResultMessage.Rows)result).result);
+            return UntypedResultSet.create(((ResultMessage.Rows) result).result);
         else
             return null;
     }
@@ -314,7 +344,7 @@ public class QueryProcessor implements QueryHandler
             ParsedStatement.Prepared prepared = prepareInternal(query);
             ResultMessage result = prepared.statement.execute(state, makeInternalOptions(prepared, values, cl), System.nanoTime());
             if (result instanceof ResultMessage.Rows)
-                return UntypedResultSet.create(((ResultMessage.Rows)result).result);
+                return UntypedResultSet.create(((ResultMessage.Rows) result).result);
             else
                 return null;
         }
@@ -330,7 +360,7 @@ public class QueryProcessor implements QueryHandler
         if (!(prepared.statement instanceof SelectStatement))
             throw new IllegalArgumentException("Only SELECTs can be paged");
 
-        SelectStatement select = (SelectStatement)prepared.statement;
+        SelectStatement select = (SelectStatement) prepared.statement;
         QueryPager pager = select.getQuery(makeInternalOptions(prepared, values), FBUtilities.nowInSeconds()).getPager(null, ProtocolVersion.CURRENT);
         return UntypedResultSet.create(select, pager, pageSize);
     }
@@ -345,7 +375,7 @@ public class QueryProcessor implements QueryHandler
         prepared.statement.validate(internalQueryState().getClientState());
         ResultMessage result = prepared.statement.executeInternal(internalQueryState(), makeInternalOptions(prepared, values));
         if (result instanceof ResultMessage.Rows)
-            return UntypedResultSet.create(((ResultMessage.Rows)result).result);
+            return UntypedResultSet.create(((ResultMessage.Rows) result).result);
         else
             return null;
     }
@@ -359,10 +389,10 @@ public class QueryProcessor implements QueryHandler
     {
         ParsedStatement.Prepared prepared = prepareInternal(query);
         assert prepared.statement instanceof SelectStatement;
-        SelectStatement select = (SelectStatement)prepared.statement;
+        SelectStatement select = (SelectStatement) prepared.statement;
         ResultMessage result = select.executeInternal(internalQueryState(), makeInternalOptions(prepared, values), nowInSec, queryStartNanoTime);
         assert result instanceof ResultMessage.Rows;
-        return UntypedResultSet.create(((ResultMessage.Rows)result).result);
+        return UntypedResultSet.create(((ResultMessage.Rows) result).result);
     }
 
     public static UntypedResultSet resultify(String query, RowIterator partition)
@@ -418,7 +448,7 @@ public class QueryProcessor implements QueryHandler
             return null;
 
         checkTrue(queryString.equals(existing.rawCQLStatement),
-                String.format("MD5 hash collision: query with the same MD5 hash was already prepared. \n Existing: '%s'", existing.rawCQLStatement));
+                  String.format("MD5 hash collision: query with the same MD5 hash was already prepared. \n Existing: '%s'", existing.rawCQLStatement));
 
         ResultSet.PreparedMetadata preparedMetadata = ResultSet.PreparedMetadata.fromPrepared(existing);
         ResultSet.ResultMetadata resultMetadata = ResultSet.ResultMetadata.fromPrepared(existing);
@@ -450,7 +480,7 @@ public class QueryProcessor implements QueryHandler
                                          QueryOptions options,
                                          Map<String, ByteBuffer> customPayload,
                                          long queryStartNanoTime)
-                                                 throws RequestExecutionException, RequestValidationException
+    throws RequestExecutionException, RequestValidationException
     {
         return processPrepared(statement, state, options, queryStartNanoTime);
     }
@@ -470,7 +500,7 @@ public class QueryProcessor implements QueryHandler
             // at this point there is a match in count between markers and variables that is non-zero
             if (logger.isTraceEnabled())
                 for (int i = 0; i < variables.size(); i++)
-                    logger.trace("[{}] '{}'", i+1, variables.get(i));
+                    logger.trace("[{}] '{}'", i + 1, variables.get(i));
         }
 
         metrics.preparedStatementsExecuted.inc();
@@ -482,7 +512,7 @@ public class QueryProcessor implements QueryHandler
                                       BatchQueryOptions options,
                                       Map<String, ByteBuffer> customPayload,
                                       long queryStartNanoTime)
-                                              throws RequestExecutionException, RequestValidationException
+    throws RequestExecutionException, RequestValidationException
     {
         return processBatch(statement, state, options, queryStartNanoTime);
     }
@@ -527,6 +557,7 @@ public class QueryProcessor implements QueryHandler
             throw new IllegalArgumentException(e.getMessage(), e);
         }
     }
+
     public static ParsedStatement parseStatement(String queryStr) throws SyntaxException
     {
         try
@@ -578,7 +609,7 @@ public class QueryProcessor implements QueryHandler
             Predicate<Function> matchesFunction = f -> ksName.equals(f.name().keyspace) && functionName.equals(f.name().name);
 
             for (Iterator<Map.Entry<MD5Digest, ParsedStatement.Prepared>> iter = preparedStatements.asMap().entrySet().iterator();
-                 iter.hasNext();)
+                 iter.hasNext(); )
             {
                 Map.Entry<MD5Digest, ParsedStatement.Prepared> pstmt = iter.next();
                 if (Iterables.any(pstmt.getValue().statement.getFunctions(), matchesFunction))
