@@ -30,6 +30,7 @@ import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.marshal.UTF8Type;
+import org.apache.cassandra.exceptions.BlockchainBrokenException;
 import org.apache.cassandra.schema.ColumnMetadata;
 
 /***
@@ -145,8 +146,10 @@ public class VerifyHashIterative extends VerifyHash
                 }
             }
             calculatedHash = HashBlock.calculateHash(orderedkey, removeEmptyCells(valueColumns), timestamp, hash);
-            System.out.println(calculatedHash);
-            assert calculatedHash.equals(lastHash) : "BLOCKCHAIN Broken";
+            //System.out.println(calculatedHash);
+            if(!calculatedHash.equals(lastHash)){
+                throw new BlockchainBrokenException(orderedkey, calculatedHash);
+            }
             hash = lastHash;
         }
 

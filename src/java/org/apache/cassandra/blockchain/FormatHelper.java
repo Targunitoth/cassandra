@@ -22,6 +22,8 @@ import java.nio.ByteBuffer;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.cassandra.db.marshal.UUIDType;
+
 public class FormatHelper
 {
     /***
@@ -76,5 +78,17 @@ public class FormatHelper
         System.arraycopy(a, 0, c, 0, aLen);
         System.arraycopy(b, 0, c, aLen, bLen);
         return c;
+    }
+
+    public static String convertKeyToString(ByteBuffer key)
+    {
+        String result;
+        try{
+            result = UUIDType.instance.compose(key).toString();
+        }catch (Exception e){
+            //Backup if key is not a UUIDType
+            result = convertByteBufferToString(key);
+        }
+        return result;
     }
 }

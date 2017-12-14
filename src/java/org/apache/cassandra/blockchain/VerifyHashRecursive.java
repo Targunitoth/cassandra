@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.UntypedResultSet;
+import org.apache.cassandra.exceptions.BlockchainBrokenException;
 import org.apache.cassandra.schema.ColumnMetadata;
 
 
@@ -82,7 +83,9 @@ public class VerifyHashRecursive extends VerifyHash
             }
         }
         calculatedHash = HashBlock.calculateHash(key, removeEmptyCells(valueColumns), timestamp, validateRecursive(row.getBytes("predecessor")));
-        assert calculatedHash.equals(thisHash) : "BLOCKCHAIN BROKEN!";
+        if(!calculatedHash.equals(thisHash)){
+            throw new BlockchainBrokenException(key, calculatedHash);
+        }
         return thisHash;
     }
 }

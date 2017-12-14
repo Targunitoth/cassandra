@@ -40,10 +40,11 @@ public class HashBlock
     //Set nullBlock to ones for debugging
     private static final ByteBuffer nullBlock = UUIDType.instance.decompose(UUID.fromString("00000000-0000-0000-0000-000000000000"));
     //private static final ByteBuffer nullBlock = UUIDType.instance.decompose(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    private static ByteBuffer blockChainHead = null;
 
+    private static ByteBuffer blockChainHead = null;
     private static String predecessorHash = "";
 
+    //TODO Can be empty string, only for debugging
     private static String delimiter = "|";
 
 
@@ -111,7 +112,7 @@ public class HashBlock
         //input += delimiter + "" + rand.nextInt(10);
 
         //For Debuging
-        //System.out.println("Hash calculation for: " + input);
+        System.out.println("Hash calculation for: " + input);
 
         //Generate SHA256 Hash
         return org.apache.commons.codec.digest.DigestUtils.sha256Hex(input);

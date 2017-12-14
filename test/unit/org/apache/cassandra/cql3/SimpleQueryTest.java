@@ -79,26 +79,35 @@ public class SimpleQueryTest extends CQLTester
     public void BlockchainTest() throws Throwable
     {
         // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount double)");
 
         // Transaction
-        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100.0);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100.0);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice2", 50);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice", 50.0);
 
         // Validate calls
         execute("VALIDATE TABLE %s");
 
         // Print all data
         System.out.println("SELCET *:");
-        UntypedResultSet urs2 = execute("SELECT * FROM %s");
-        for (UntypedResultSet.Row row : urs2)
+        UntypedResultSet urs = execute("SELECT * FROM %s");
+        for (UntypedResultSet.Row row : urs)
         {
             System.out.println("New Row:");
             row.printFormatet();
         }
+
+        double balance;
+        System.out.println("SELCET Alice:");
+        urs = execute("SELECT sum(amount) FROM %s WHERE destination = ? ALLOW FILTERING", "Alice");
+        balance = urs.one().getDouble("system.sum(amount)");
+        System.out.println("Received: " + balance);
+        urs = execute("SELECT sum(amount) FROM %s WHERE source = ? ALLOW FILTERING", "Alice");
+        balance -= urs.one().getDouble("system.sum(amount)");
+        System.out.println("Balance: " + balance);
     }
 
 
