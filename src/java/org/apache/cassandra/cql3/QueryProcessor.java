@@ -18,6 +18,7 @@
 package org.apache.cassandra.cql3;
 
 import java.nio.ByteBuffer;
+import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -36,10 +37,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.*;
+import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.blockchain.VerifyHashIterative;
 import org.apache.cassandra.blockchain.VerifyHashRecursive;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.marshal.TimeUUIDType;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaChangeListener;
 import org.apache.cassandra.schema.SchemaConstants;
@@ -297,9 +300,33 @@ public class QueryProcessor implements QueryHandler
     public static UntypedResultSet executeInternal(String query, Object... values)
     {
         //TODO Hack here for validate Blockchain
+        if (validateTable(query)) return null;
+        //TODO Hack here for Blockchain Insert
+        if(query.contains("INSERT") && query.contains(HashBlock.getBlockchainIDString())){
+
+
+
+            query = manipulateQuery(query);
+            values = addValues(values);
+
+        }
+
+        ParsedStatement.Prepared prepared = prepareInternal(query);
+        ResultMessage result = prepared.statement.executeInternal(internalQueryState(), makeInternalOptions(prepared, values));
+        if (result instanceof ResultMessage.Rows)
+            return UntypedResultSet.create(((ResultMessage.Rows) result).result);
+        else
+            return null;
+    }
+
+
+
+    public static boolean validateTable(String query)
+    {
         if (query.startsWith("VALIDATE TABLE"))
         {
             String tableName = query.replace("VALIDATE TABLE", "").trim();
+            tableName = tableName.replace(";", "").trim();
 
             //Validate Iterative
             if (VerifyHashIterative.verify(tableName))
@@ -320,14 +347,36 @@ public class QueryProcessor implements QueryHandler
             {
                 System.out.println("RECURSIVE BLOCKCHAIN VERIFICATION FAILED!");
             }
-            return null;
+            return true;
         }
-        ParsedStatement.Prepared prepared = prepareInternal(query);
-        ResultMessage result = prepared.statement.executeInternal(internalQueryState(), makeInternalOptions(prepared, values));
-        if (result instanceof ResultMessage.Rows)
-            return UntypedResultSet.create(((ResultMessage.Rows) result).result);
-        else
-            return null;
+        return false;
+    }
+
+    private static String manipulateQuery(String query)
+    {
+        String TableString = "";
+        for(int i = 1; i < HashBlock.tables.length; i++){
+            TableString += ", " + HashBlock.tables[i];
+        }
+
+        query = query.replaceFirst("\\)", TableString + "\\)");
+
+        return query.replaceFirst("\\?", "\\?, \\?, \\?, \\?");
+    }
+
+    private static Object[] addValues(Object[] values)
+    {
+        Object[] result = new Object[values.length + 3];
+        int i = 0;
+        for (Object item : values)
+        {
+            result[i++] = item;
+        }
+        for(;i < result.length;i++){
+            //TODO TEMP for testing
+            result[i] = TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"));
+        }
+        return result;
     }
 
     public static UntypedResultSet execute(String query, ConsistencyLevel cl, Object... values)

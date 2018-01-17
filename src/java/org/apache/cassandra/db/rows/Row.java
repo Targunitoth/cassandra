@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db.rows;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -507,6 +508,7 @@ public interface Row extends Unfiltered, Collection<ColumnData>
         public Row build();
 
         public Object[] getAllCells();
+
     }
 
     /**

@@ -20,10 +20,13 @@ package org.apache.cassandra.cql3;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import javax.xml.bind.SchemaOutputResolver;
+
 import com.google.common.collect.ImmutableList;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.marshal.UTF8Type;
@@ -35,6 +38,7 @@ import org.apache.cassandra.transport.CBUtil;
 import org.apache.cassandra.transport.ProtocolException;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.btree.BTreeSet;
 
 /**
  * Options for a query.
@@ -188,6 +192,8 @@ public abstract class QueryOptions
         return this;
     }
 
+    public abstract void updateValues(ByteBuffer predecessorBuffer, ByteBuffer hashBuffer, ByteBuffer timestampBuffer);
+
     static class DefaultQueryOptions extends QueryOptions
     {
         private final ConsistencyLevel consistency;
@@ -231,6 +237,37 @@ public abstract class QueryOptions
         {
             return options;
         }
+
+        @Override
+        public void updateValues(ByteBuffer predecessorBuffer, ByteBuffer hashBuffer, ByteBuffer timestampBuffer)
+        {
+            System.out.println("Update Values!");
+            System.out.println(values.toString());
+
+            for(ByteBuffer item : getValues())
+            {
+                System.out.println("Value: " + item);
+            }
+
+            if(values instanceof BTreeSet)
+            {
+                System.out.println("Instance of BTreeSet");
+            }
+
+            //TODO Instance of ArrayList!!!!!!!!!
+            if(values instanceof ArrayList )
+            {
+                System.out.println("Instance of ArrayList");
+
+                //ByteBuffer[] valueArray = FormatHelper.ListToArray(values);
+                int index = values.size();
+                //values.remove();
+
+                values.set(index - 1, timestampBuffer);
+                values.set(index - 2, hashBuffer);
+                values.set(index - 3, predecessorBuffer);
+            }
+        }
     }
 
     static class QueryOptionsWrapper extends QueryOptions
@@ -272,6 +309,12 @@ public abstract class QueryOptions
         {
             wrapped.prepare(specs);
             return this;
+        }
+
+        @Override
+        public void updateValues(ByteBuffer predecessorBuffer, ByteBuffer hashBuffer, ByteBuffer timestampBuffer)
+        {
+            wrapped.updateValues(predecessorBuffer, hashBuffer, timestampBuffer);
         }
     }
 

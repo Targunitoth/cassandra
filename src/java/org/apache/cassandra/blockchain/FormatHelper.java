@@ -19,6 +19,7 @@
 package org.apache.cassandra.blockchain;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -83,11 +84,59 @@ public class FormatHelper
     public static String convertKeyToString(ByteBuffer key)
     {
         String result;
-        try{
+        try
+        {
             result = UUIDType.instance.compose(key).toString();
-        }catch (Exception e){
+        }
+        catch (Exception e)
+        {
             //Backup if key is not a UUIDType
             result = convertByteBufferToString(key);
+        }
+        return result;
+    }
+
+    public static ByteBuffer[] removeNull(ByteBuffer[] a)
+    {
+        int newSize = 0;
+        for (ByteBuffer item : a)
+        {
+            if (item != null)
+            {
+                newSize++;
+            }
+        }
+        ByteBuffer[] result = new ByteBuffer[newSize];
+        int index = 0;
+        for (ByteBuffer item : a)
+        {
+            if (item != null)
+            {
+                result[index++] = item;
+            }
+        }
+        return result;
+    }
+
+    public static ByteBuffer[] addElement(ByteBuffer[] a, ByteBuffer b)
+    {
+        ByteBuffer[] result = new ByteBuffer[a.length + 1];
+        int index = 0;
+        for (ByteBuffer item : a)
+        {
+            result[index++] = item;
+        }
+        result[index] = b;
+        return result;
+    }
+
+    public static ByteBuffer[] ListToArray(List<ByteBuffer> a)
+    {
+        ByteBuffer[] result = new ByteBuffer[a.size()];
+        int index = 0;
+        for (ByteBuffer item : a)
+        {
+            result[index++] = item;
         }
         return result;
     }

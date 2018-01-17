@@ -55,7 +55,7 @@ public class UpdateParameters
     private Row.Builder regularBuilder;
 
     // The builder currently in use. Will alias either staticBuilder or regularBuilder, which are themselves built lazily.
-    private Row.Builder builder;
+    public Row.Builder builder;
 
     public UpdateParameters(TableMetadata metadata,
                             RegularAndStaticColumns updatedColumns,

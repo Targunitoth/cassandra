@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.db.marshal.TimeUUIDType;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -595,6 +596,7 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime) throws RequestValidationException, RequestExecutionException
     {
+        //TODO Update options => Values?
         for (IMutation mutation : getMutations(options, true, queryState.getTimestamp(), queryStartNanoTime))
         {
             mutation.apply();

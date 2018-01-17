@@ -20,6 +20,8 @@ package org.apache.cassandra.blockchain;
 
 import java.nio.ByteBuffer;
 
+import javax.xml.bind.SchemaOutputResolver;
+
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 
@@ -36,8 +38,14 @@ public abstract class VerifyHash
 
     protected static void loadMetadata()
     {
-        String[] tableNameSplit = tableName.split("\\.");
-        metadata = Schema.instance.validateTable(tableNameSplit[0], tableNameSplit[1]);
+        if(tableName.contains("."))
+        {
+            String[] tableNameSplit = tableName.split("\\.");
+            metadata = Schema.instance.validateTable(tableNameSplit[0], tableNameSplit[1]);
+        }else {
+            System.out.println("Please provide a keyspace. Trying default: mykeyspace.");
+            metadata = Schema.instance.validateTable("mykeyspace", tableName);
+        }
     }
 
     protected static ByteBuffer[] removeEmptyCells(ByteBuffer[] array)

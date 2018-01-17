@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import com.datastax.driver.core.utils.UUIDs;
 import org.apache.cassandra.blockchain.FormatHelper;
+import org.apache.cassandra.transport.messages.QueryMessage;
 
 
 public class SimpleQueryTest extends CQLTester
@@ -88,9 +89,6 @@ public class SimpleQueryTest extends CQLTester
 
         execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice", 50.0);
 
-        // Validate calls
-        execute("VALIDATE TABLE %s");
-
         // Print all data
         System.out.println("SELCET *:");
         UntypedResultSet urs = execute("SELECT * FROM %s");
@@ -100,14 +98,27 @@ public class SimpleQueryTest extends CQLTester
             row.printFormatet();
         }
 
-        double balance;
+        // Validate calls
+        execute("VALIDATE TABLE %s");
+
+        /*double balance;
         System.out.println("SELCET Alice:");
         urs = execute("SELECT sum(amount) FROM %s WHERE destination = ? ALLOW FILTERING", "Alice");
         balance = urs.one().getDouble("system.sum(amount)");
         System.out.println("Received: " + balance);
         urs = execute("SELECT sum(amount) FROM %s WHERE source = ? ALLOW FILTERING", "Alice");
         balance -= urs.one().getDouble("system.sum(amount)");
-        System.out.println("Balance: " + balance);
+        System.out.println("Balance: " + balance);*/
+    }
+
+    @Test
+    public void BlockchainQueryTest() throws Throwable{
+        // Create a blockchain table
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount double)");
+
+        //QueryOptions op = new QueryOptions.DefaultQueryOptions();
+        //QueryMessage qm = new QueryMessage("INSERT INTO mytable (blockchainid, source, destination, amount) VALUES (550e8400-e29b-11d4-a716-446655440005, 'Alice', 'Bob', 100)", op);
+        //qm.execute();
     }
 
 

@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.blockchain.HashBlock;
@@ -32,6 +33,7 @@ import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.CompactTables;
 import org.apache.cassandra.db.Slice;
 import org.apache.cassandra.db.marshal.TimeType;
+import org.apache.cassandra.db.marshal.TimeUUIDType;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.db.rows.BufferCell;
@@ -122,50 +124,68 @@ public class UpdateStatement extends ModificationStatement
             }
 
 
-            for (Operation op : updates)
-            {
-                op.execute(update.partitionKey(), params);
-
-                //Try to check for blockchainid as part of the column
-                if (!hasBlockchainID && op.column.name.toString().contains(HashBlock.getBlockchainIDString()))
-                {
-                    hasBlockchainID = true;
-                }
-            }
-
-
             //insert Blockchain
             if (hasBlockchainID)
             {
-                //System.out.println("Insert Blockchain values");
-                //Save current key
+                System.out.println("Blockchain gefunden.");
+                System.out.println("Keyspace: " + update.metadata().keyspace);
+                System.out.println("Name: " + update.metadata().name);
+                System.out.println("UpdatedColumns: " + params.updatedColumns.toString());
+                System.out.println("Options: " + params.options.toString());
+                for (ByteBuffer b:params.options.getValues()                     )
+                {
+                    System.out.println("Option Values: " + b);
+                }
+
+                System.out.println("Options cons: " + params.options.getConsistency().toString());
+                //System.out.println("Options ks: " + params.options.getKeyspace().toString());
+                System.out.println("Options pg: " + params.options.getPageSize());
+                System.out.println("Options: " + params.options.toString());
+
+
+                System.out.println("Values: " + params.options.getValues().toString());
+
+
+                //TODO Comment und testen
                 ByteBuffer key = update.partitionKey().getKey();
-
-                //Get old predecessor
-                ColumnMetadata columnMetadata = metadata.getColumn(HashBlock.getIdentifer("predecessor"));
-                long timestamp = params.getTimestamp();
-                ByteBuffer timestampBuffer = TimeType.instance.decompose(timestamp);
+                ByteBuffer timestampBuffer = TimeType.instance.decompose(params.getTimestamp());
                 ByteBuffer predecessorBuffer = HashBlock.getBlockChainHead();
-                CellPath path = null;
 
-                //Write Cell
-                Cell cell = BufferCell.live(columnMetadata, timestamp, predecessorBuffer, path);
-                params.addBlockchainCell(cell);
+                //Get the new Cell values from the insert
+                ByteBuffer[] cellValues = FormatHelper.ListToArray(params.options.getValues());
 
-                //Calculate Hash
-                columnMetadata = metadata.getColumn(HashBlock.getIdentifer("hash"));
-                ByteBuffer hashBuffer = HashBlock.generateAndSetHash(key, FormatHelper.concat(clustering.getRawValues(), params.getCellValues()), timestampBuffer);
+                //Key will be used twice for calculation
+                for (int i = 0; i < cellValues.length; i++)
+                {
+                    if (cellValues[i] != null && cellValues[i].equals(key))
+                    {
+                        cellValues[i] = null; //Kill key from list
+                    }
+                    if (cellValues[i] != null && cellValues[i].equals(TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"))))
+                    {
+                        cellValues[i] = null; //Kill Dummys from list
+                    }
+                }
 
-                //Set Hash
-                cell = BufferCell.live(columnMetadata, timestamp, hashBuffer, path);
-                params.addBlockchainCell(cell);
+                //Maybe this is wrong, but else we miss clustering columns for calculation
+                cellValues = FormatHelper.concat(clustering.getRawValues(), cellValues);
 
-                //Prepare Timestamp
-                columnMetadata = metadata.getColumn(HashBlock.getIdentifer("timestamp"));
+                //Remove null values in the Array
+                cellValues = FormatHelper.removeNull(cellValues);
 
-                //Set Timestamp
-                cell = BufferCell.live(columnMetadata, timestamp, timestampBuffer, path);
-                params.addBlockchainCell(cell);
+                //Don't forget to add the predecessor
+                cellValues = FormatHelper.addElement(cellValues, predecessorBuffer);
+
+                ByteBuffer hashBuffer = HashBlock.generateAndSetHash(key, cellValues, timestampBuffer);
+                //System.out.println(FormatHelper.convertByteBufferToString(predecessorBuffer) + " " + FormatHelper.convertByteBufferToString(hashBuffer) + " " +FormatHelper.convertByteBufferToString(timestampBuffer));
+
+
+                params.options.updateValues(predecessorBuffer, hashBuffer, timestampBuffer);
+            }
+
+            for (Operation op : updates)
+            {
+                op.execute(update.partitionKey(), params);
             }
 
             update.add(params.buildRow());

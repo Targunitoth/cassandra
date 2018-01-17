@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.db.rows;
 
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 

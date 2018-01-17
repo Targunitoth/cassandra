@@ -397,9 +397,9 @@ public class CreateTableStatement extends SchemaAlteringStatement
         public void addDefinition(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
         {
             addDef(def, type, isStatic);
-            if(def.toString().toLowerCase().contains(HashBlock.getBlockchainIDString())){
+            if(def != null && def.toString().toLowerCase().contains(HashBlock.getBlockchainIDString())){
                 System.out.println("Column name blockchainid was detected");
-                addBlockchainDefinition(isStatic);
+                addBlockchainDefinition(false);
                 HashBlock.identifier[0] = def;
             }
         }
@@ -407,7 +407,7 @@ public class CreateTableStatement extends SchemaAlteringStatement
         private void addDef(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
         {
             //Überprüfe, dass keine Tabellen doppelt angelegt werden.
-            if(!definedNames.contains(def))
+            if(definedNames != null && !definedNames.contains(def))
             {
                 definedNames.add(def);
                 definitions.put(def, type);
@@ -420,7 +420,7 @@ public class CreateTableStatement extends SchemaAlteringStatement
         {
             //System.out.println("addBlockchainDefinition was called");
             assert(HashBlock.tables.length == HashBlock.types.length);
-            assert HashBlock.identifier == null : "HashBlock identifier is already set. Multiple Tables with blockchain are currently not supported";
+            //TODO Add => assert HashBlock.identifier == null : "HashBlock identifier is already set. Multiple Tables with blockchain are currently not supported";
             HashBlock.identifier = new ColumnIdentifier[HashBlock.tables.length];
 
             //Starte bei 1, da wir blockchainid schon angelegt haben

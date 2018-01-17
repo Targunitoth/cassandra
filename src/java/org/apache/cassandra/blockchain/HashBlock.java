@@ -23,13 +23,18 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.UUID;
 
+import com.datastax.driver.core.utils.UUIDs;
 import com.sun.jersey.api.NotFoundException;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.ColumnIdentifier;
+import org.apache.cassandra.cql3.QueryProcessor;
+import org.apache.cassandra.cql3.ResultSet;
+import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.marshal.TimeType;
 import org.apache.cassandra.db.marshal.TimestampType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.marshal.UUIDType;
+import org.apache.cassandra.exceptions.AlreadyExistsException;
 
 public class HashBlock
 {
@@ -38,8 +43,8 @@ public class HashBlock
     public static ColumnIdentifier identifier[];
 
     //Set nullBlock to ones for debugging
-    private static final ByteBuffer nullBlock = UUIDType.instance.decompose(UUID.fromString("00000000-0000-0000-0000-000000000000"));
-    //private static final ByteBuffer nullBlock = UUIDType.instance.decompose(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    //private static final ByteBuffer nullBlock = UUIDType.instance.decompose(org.apache.cassandra.utils.LOW));
+    private static final ByteBuffer nullBlock = UUIDType.instance.decompose(UUID.fromString("00000000-0000-1000-8080-808080808080"));
 
     private static ByteBuffer blockChainHead = null;
     private static String predecessorHash = "";
@@ -47,12 +52,18 @@ public class HashBlock
     //TODO Can be empty string, only for debugging
     private static String delimiter = "|";
 
+    private static boolean init = false;
+
 
     public static ByteBuffer getBlockChainHead()
     {
         //Am anfang ist der header leer, dann gib 0 zurück
         if (blockChainHead == null)
         {
+            if(!init){
+                init = true;
+                init();
+            }
             return nullBlock;
         }
         else
@@ -61,18 +72,41 @@ public class HashBlock
         }
     }
 
+    private static void init(){
+        try{
+            QueryProcessor.executeInternal("create table system.blockchain (nullblock uuid primary key, hash text, predecessor uuid)");
+            saveNewHead();
+        }catch (AlreadyExistsException e){
+            restoreData();
+        }
+    }
+
+    private static void restoreData()
+    {
+        UntypedResultSet rs = QueryProcessor.executeInternal("SELECT hash, predecessor FROM system.blockchain WHERE nullblock + = ?", getNullBlock());
+        predecessorHash = rs.one().getString("hash");
+        blockChainHead = rs.one().getBytes("predecessor");
+    }
+
     private static void setBlockChainHead(ByteBuffer newHead)
     {
         //Nach jedem Schreiben des Headers muss er erst wieder gelesen werden
         blockChainHead = newHead;
+        //Save in database
+        saveNewHead();
         //TODO Optional anounce new Head with gossip
+    }
+
+    private static void saveNewHead()
+    {
+        QueryProcessor.executeInternal("INSERT INTO system.blockchain (nullblock, hash, predecessor) values (?, ?, ?)", getNullBlock(), getPredecessorHash(), getBlockChainHead());
     }
 
     /***
      * Generates the Hash for the Cells
      * @param key Key of the Row
      * @param cellValues Value of the cells of the row
-     * @param timestamp current timestamp
+     * @param timestamp Timestamp
      * @return
      */
     public static ByteBuffer generateAndSetHash(ByteBuffer key, ByteBuffer[] cellValues, ByteBuffer timestamp)//insert Cell
@@ -81,8 +115,11 @@ public class HashBlock
         String sha256hex = calculateHash(key, cellValues, timestamp, predecessorHash);
 
         //Set this key and hash as new predecessor
-        HashBlock.setBlockChainHead(key);
         predecessorHash = sha256hex;
+        HashBlock.setBlockChainHead(key);
+
+        //For Debuging
+        System.out.println("Calculatet Hash: " + sha256hex);
 
         //Convert the String to ByteBuffer and return it
         return UTF8Type.instance.decompose(sha256hex);
@@ -132,8 +169,12 @@ public class HashBlock
         return tables[number];
     }
 
-    public static ColumnIdentifier getIdentifer(String tablename) throws NotFoundException
+    public static ColumnIdentifier getIdentifer(String tablename)
     {
+        if(!init){
+            init = true;
+            init();
+        }
         int index = -1;
         for (int i = 0; i < tables.length; i++)
         {
@@ -145,7 +186,8 @@ public class HashBlock
         }
         if (index < 0 || index >= tables.length)
         {
-            throw new NotFoundException();
+            //TODO throw new IndexOutOfBoundsException or not found
+            return null;
         }
         return identifier[index];
     }

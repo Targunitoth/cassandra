@@ -25,7 +25,7 @@
     <property name="debuglevel" value="source,lines,vars"/>
 
     <!-- default version and SCM information -->
-    <property name="base.version" value="4.0"/>
+    <property name="base.version" value="8.10"/>
     <property name="scm.connection" value="scm:git://git.apache.org/cassandra.git"/>
     <property name="scm.developerConnection" value="scm:git://git.apache.org/cassandra.git"/>
     <property name="scm.url" value="http://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=tree"/>
@@ -739,7 +739,7 @@
         <javac fork="true"
                debug="true" debuglevel="${debuglevel}" encoding="utf-8"
                destdir="${build.classes.main}" includeantruntime="false" source="${source.version}" target="${target.version}"
-               memorymaximumsize="512M">
+               memorymaximumsize="1024M">
             <src path="${build.src.java}"/>
             <src path="${build.src.gen-java}"/>
             <compilerarg value="-XDignore.symbol.file"/>
@@ -1053,6 +1053,7 @@
   </target>
 
     <!-- use https://github.com/krummas/jstackjunit to get thread dumps when unit tests time out -->
+    <!-- Added fork and memoryMaximumSize="256m" to avoid out of memory exception -->
   <taskdef name="junit" classname="org.krummas.junit.JStackJUnitTask" classpath="lib/jstackjunit-0.0.1.jar"/>
 
   <target name="build-test" depends="build" description="Compile test classes">
@@ -1064,6 +1065,8 @@
      includeantruntime="true"
      source="${source.version}"
      target="${target.version}"
+     fork="true"
+     memoryMaximumSize="256m"
      encoding="utf-8">
      <classpath>
         <path refid="cassandra.classpath"/>

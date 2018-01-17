@@ -17,12 +17,21 @@
  */
 package org.apache.cassandra.transport.messages;
 
+import java.sql.Timestamp;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
 
 import io.netty.buffer.ByteBuf;
+import javafx.util.converter.DateTimeStringConverter;
+import javafx.util.converter.TimeStringConverter;
+import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.blockchain.VerifyHashIterative;
+import org.apache.cassandra.blockchain.VerifyHashRecursive;
 import org.apache.cassandra.cql3.QueryOptions;
+import org.apache.cassandra.cql3.QueryProcessor;
+import org.apache.cassandra.db.marshal.TimeType;
+import org.apache.cassandra.db.marshal.TimestampType;
 import org.apache.cassandra.exceptions.RequestExecutionException;
 import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.service.ClientState;
@@ -73,7 +82,7 @@ public class QueryMessage extends Message.Request
         }
     };
 
-    public final String query;
+    public String query;
     public final QueryOptions options;
 
     public QueryMessage(String query, QueryOptions options)
@@ -87,8 +96,18 @@ public class QueryMessage extends Message.Request
     {
         try
         {
+            System.out.println("My old Query: " + query);
+            //TODO Hack here for validate Blockchain
+            if (QueryProcessor.validateTable(query)) return null;
+
             if (options.getPageSize() == 0)
                 throw new ProtocolException("The page size cannot be 0");
+
+            //Hack here for cqlsh insert command
+            if(query.toUpperCase().contains("INSERT") && query.contains(HashBlock.getBlockchainIDString())){
+                manipulateQuery(queryStartNanoTime);
+                System.out.println("My new Query: " + query);
+            }
 
             UUID tracingId = null;
             if (isTracingRequested())
@@ -132,6 +151,28 @@ public class QueryMessage extends Message.Request
         finally
         {
             Tracing.instance.stopSession();
+        }
+    }
+
+    private void manipulateQuery(long queryStartNanoTime)
+    {
+        String TableString = "";
+        //Skip Nr. 1 (key)
+        for(int i = 1; i < HashBlock.tables.length; i++){
+            TableString += ", " + HashBlock.tables[i];
+        }
+
+        //TODO Optional generate Hashblock here.
+        //TODO change HashBlock Timestamp to long
+        //TimeType.instance.decompose(queryStartNanoTime )
+        String[] querryArray = query.split("\\)");
+        if(querryArray.length == 3){
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ", " + "null" + ", " + "null" + ", " + queryStartNanoTime + ")" + querryArray[2];
+        }else if(querryArray.length == 4){ //Case with now
+            //querryArray[1] => now(
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + ", " + "null" + ", " + "null" + ", " + queryStartNanoTime + ")" + querryArray[3];
+        }else {
+            throw new IndexOutOfBoundsException();
         }
     }
 
