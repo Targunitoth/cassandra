@@ -38,7 +38,7 @@ public class VerifyHashRecursive extends VerifyHash
         loadMetadata();
 
         //Recursive Call
-        System.out.println("Start Recursive Validation");
+        System.out.println("Start validating table " + tableName + " recursively");
         String calculatedHash = validateRecursive(HashBlock.getBlockChainHead());
         //Test Value
         return calculatedHash.equals(HashBlock.getPredecessorHash());
@@ -59,32 +59,36 @@ public class VerifyHashRecursive extends VerifyHash
         String thisHash = "";
 
         UntypedResultSet rs = QueryProcessor.executeInternal("SELECT * FROM " + tableName + " WHERE " + HashBlock.getBlockchainIDString() + "=?", key);
-        UntypedResultSet.Row row = rs.one();
-        for (ColumnMetadata cm : metadata.columns())
+        if(!rs.isEmpty())
         {
-            cmname = cm.name.toString();
+            UntypedResultSet.Row row = rs.one();
+            for (ColumnMetadata cm : metadata.columns())
+            {
+                cmname = cm.name.toString();
 
-            if (cmname.equals(HashBlock.getBlockchainIDString()))
-            {
-                //Do nothing for the key, it is already set
+                if (cmname.equals(HashBlock.getBlockchainIDString()))
+                {
+                    //Do nothing for the key, it is already set
+                }
+                else if (cmname.equals("timestamp"))
+                {
+                    timestamp = row.getBytes("timestamp");
+                }
+                else if (cmname.equals("hash"))
+                {
+                    //Save the current hash to return it at the end
+                    thisHash = row.getString("hash");
+                }
+                else
+                {
+                    valueColumns[counter++] = row.getBytes(cmname);
+                }
             }
-            else if (cmname.equals("timestamp"))
+            calculatedHash = HashBlock.calculateHash(key, removeEmptyCells(valueColumns), timestamp, validateRecursive(row.getBytes("predecessor")));
+            if (!calculatedHash.equals(thisHash))
             {
-                timestamp = row.getBytes("timestamp");
+                throw new BlockchainBrokenException(key, calculatedHash);
             }
-            else if (cmname.equals("hash"))
-            {
-                //Save the current hash to return it at the end
-                thisHash = row.getString("hash");
-            }
-            else
-            {
-                valueColumns[counter++] = row.getBytes(cmname);
-            }
-        }
-        calculatedHash = HashBlock.calculateHash(key, removeEmptyCells(valueColumns), timestamp, validateRecursive(row.getBytes("predecessor")));
-        if(!calculatedHash.equals(thisHash)){
-            throw new BlockchainBrokenException(key, calculatedHash);
         }
         return thisHash;
     }

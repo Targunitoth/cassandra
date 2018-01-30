@@ -23,8 +23,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multiset;
 
 import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.cql3.QueryProcessor;
@@ -44,7 +47,7 @@ public class VerifyHashIterative extends VerifyHash
     public static boolean verify(String tableName)
     {
 
-        System.out.println("Start validating TABLE " + tableName);
+        System.out.println("Start validating table " + tableName + " iteratively");
         setTableName(tableName);
         loadMetadata();
         generateTable();
@@ -63,8 +66,10 @@ public class VerifyHashIterative extends VerifyHash
 
         for (UntypedResultSet.Row row : rs)
         {
+            System.out.println("------------------------------------------------");
             row.printFormatet();
         }
+
 
         //Get the first Key column name
         ImmutableList<ColumnMetadata> columnMetadata = metadata.partitionKeyColumns();
@@ -86,11 +91,30 @@ public class VerifyHashIterative extends VerifyHash
                 }
                 else
                 {
-                    tmp.put(columname, row.getBytes(columname));
+                    if (row.getBytes(columname) == null)
+                    {
+                        tmp.put(columname, null);
+                    }
+                    else
+                    {
+                        tmp.put(columname, row.getBytes(columname));
+                    }
                 }
             }
             table.put(key, tmp);
         }
+
+        //for Debugging
+        /*
+        System.out.println("Print Table");
+        for (Map.Entry<ByteBuffer, HashMap<String, ByteBuffer>> entry : table.entrySet())
+        {
+            ByteBuffer tmpkey = entry.getKey();
+            System.out.println("---\nMain Key: " + FormatHelper.convertByteBufferToString(tmpkey) + "\n=>");
+            HashMap value = entry.getValue();
+            value.forEach((k, v) -> System.out.println("key: " + k + " value: " + FormatHelper.convertByteBufferToString((ByteBuffer) v)));
+        }
+        */
     }
 
     private static String validateList()
@@ -98,12 +122,20 @@ public class VerifyHashIterative extends VerifyHash
         List<ByteBuffer> order = new LinkedList<>();
         //Set first key to head of blockchain
         ByteBuffer key = HashBlock.getBlockChainHead();
+        assert key != null: "Key can't be empty";
         //Sort List
         do
         {
+            System.out.println("Key: " + FormatHelper.convertByteBufferToString(key));
             order.add(0, key);
-            key = table.get(key).get("predecessor");
-        } while (!key.equals(HashBlock.getNullBlock()));
+            if(table.get(key) == null){
+                break;
+            }else
+            {
+                System.out.println("Key in List: " + FormatHelper.convertByteBufferToString(table.get(key).get("predecessor")));
+                key = table.get(key).get("predecessor");
+            }
+        } while (key != null && !key.equals(HashBlock.getNullBlock()));
 
         System.out.println("Ordered");
         for (ByteBuffer orderedkey : order)
@@ -123,6 +155,8 @@ public class VerifyHashIterative extends VerifyHash
 
         for (ByteBuffer orderedkey : order)
         {
+            if(orderedkey == null) continue;
+            if(table.get(orderedkey) == null) continue;
             cvcounter = 0;
 
             for (ColumnMetadata cm : metadata.columns())
@@ -134,20 +168,21 @@ public class VerifyHashIterative extends VerifyHash
                 }
                 else if (cmname.equals("timestamp"))
                 {
-                    timestamp = table.get(orderedkey).get(cm.name.toString());
+                    timestamp = table.get(orderedkey).get(cmname);
                 }
                 else if (cmname.equals("hash"))
                 {
-                    lastHash = UTF8Type.instance.compose(table.get(orderedkey).get(cm.name.toString()));
+                    lastHash = UTF8Type.instance.compose(table.get(orderedkey).get(cmname));
                 }
                 else
                 {
-                    valueColumns[cvcounter++] = table.get(orderedkey).get(cm.name.toString());
+                    valueColumns[cvcounter++] = table.get(orderedkey).get(cmname);
                 }
             }
             calculatedHash = HashBlock.calculateHash(orderedkey, removeEmptyCells(valueColumns), timestamp, hash);
             //System.out.println(calculatedHash);
-            if(!calculatedHash.equals(lastHash)){
+            if (!calculatedHash.equals(lastHash))
+            {
                 throw new BlockchainBrokenException(orderedkey, calculatedHash);
             }
             hash = lastHash;

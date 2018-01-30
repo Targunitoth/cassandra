@@ -395,7 +395,8 @@ public abstract class QueryOptions
         private final long timestamp;
         private final String keyspace;
 
-        private SpecificOptions(int pageSize, PagingState state, ConsistencyLevel serialConsistency, long timestamp, String keyspace)
+        //TODO Set private again
+        public SpecificOptions(int pageSize, PagingState state, ConsistencyLevel serialConsistency, long timestamp, String keyspace)
         {
             this.pageSize = pageSize;
             this.state = state;

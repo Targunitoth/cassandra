@@ -92,7 +92,8 @@ public final class FunctionResolver
             // function name not fully qualified
             candidates = new ArrayList<>();
             // add 'SYSTEM' (native) candidates
-            candidates.addAll(Schema.instance.getFunctions(name.asNativeFunction()));
+            Collection<Function> functions = Schema.instance.getFunctions(name.asNativeFunction());
+            candidates.addAll(functions);
             // add 'current keyspace' candidates
             candidates.addAll(Schema.instance.getFunctions(new FunctionName(keyspace, name.name)));
         }

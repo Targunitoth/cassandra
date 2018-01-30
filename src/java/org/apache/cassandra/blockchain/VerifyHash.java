@@ -38,6 +38,7 @@ public abstract class VerifyHash
 
     protected static void loadMetadata()
     {
+        assert tableName != "": "Table name must be set!";
         if(tableName.contains("."))
         {
             String[] tableNameSplit = tableName.split("\\.");

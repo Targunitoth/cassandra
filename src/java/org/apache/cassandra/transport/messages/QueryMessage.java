@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.transport.messages;
 
+import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.transport.CBUtil;
+import org.apache.cassandra.transport.Event;
 import org.apache.cassandra.transport.Message;
 import org.apache.cassandra.transport.ProtocolException;
 import org.apache.cassandra.transport.ProtocolVersion;
@@ -96,15 +98,16 @@ public class QueryMessage extends Message.Request
     {
         try
         {
-            System.out.println("My old Query: " + query);
+            //System.out.println("My old Query: " + query);
             //TODO Hack here for validate Blockchain
-            if (QueryProcessor.validateTable(query)) return null;
+            if (QueryProcessor.validateTable(query)) return new ResultMessage.Void();
 
             if (options.getPageSize() == 0)
                 throw new ProtocolException("The page size cannot be 0");
 
             //Hack here for cqlsh insert command
-            if(query.toUpperCase().contains("INSERT") && query.contains(HashBlock.getBlockchainIDString())){
+            if (query.toUpperCase().contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
+            {
                 manipulateQuery(queryStartNanoTime);
                 System.out.println("My new Query: " + query);
             }
@@ -124,9 +127,9 @@ public class QueryMessage extends Message.Request
                 builder.put("query", query);
                 if (options.getPageSize() > 0)
                     builder.put("page_size", Integer.toString(options.getPageSize()));
-                if(options.getConsistency() != null)
+                if (options.getConsistency() != null)
                     builder.put("consistency_level", options.getConsistency().name());
-                if(options.getSerialConsistency() != null)
+                if (options.getSerialConsistency() != null)
                     builder.put("serial_consistency_level", options.getSerialConsistency().name());
 
                 Tracing.instance.begin("Execute CQL3 query", state.getClientAddress(), builder.build());
@@ -134,7 +137,7 @@ public class QueryMessage extends Message.Request
 
             Message.Response response = ClientState.getCQLQueryHandler().process(query, state, options, getCustomPayload(), queryStartNanoTime);
             if (options.skipMetadata() && response instanceof ResultMessage.Rows)
-                ((ResultMessage.Rows)response).result.metadata.setSkipMetadata();
+                ((ResultMessage.Rows) response).result.metadata.setSkipMetadata();
 
             if (tracingId != null)
                 response.setTracingId(tracingId);
@@ -143,6 +146,7 @@ public class QueryMessage extends Message.Request
         }
         catch (Exception e)
         {
+            e.printStackTrace();
             JVMStabilityInspector.inspectThrowable(e);
             if (!((e instanceof RequestValidationException) || (e instanceof RequestExecutionException)))
                 logger.error("Unexpected error during query", e);
@@ -158,7 +162,8 @@ public class QueryMessage extends Message.Request
     {
         String TableString = "";
         //Skip Nr. 1 (key)
-        for(int i = 1; i < HashBlock.tables.length; i++){
+        for (int i = 1; i < HashBlock.tables.length; i++)
+        {
             TableString += ", " + HashBlock.tables[i];
         }
 
@@ -166,12 +171,21 @@ public class QueryMessage extends Message.Request
         //TODO change HashBlock Timestamp to long
         //TimeType.instance.decompose(queryStartNanoTime )
         String[] querryArray = query.split("\\)");
-        if(querryArray.length == 3){
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ", " + "null" + ", " + "null" + ", " + queryStartNanoTime + ")" + querryArray[2];
-        }else if(querryArray.length == 4){ //Case with now
+        if (querryArray.length == 3)
+        {
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ", null, null, null)" + querryArray[2];
+        }
+        else if (querryArray.length == 2)
+        { //Without Semicolon
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ", null, null, null)";
+        }
+        else if (querryArray.length == 4)
+        { //Case with now
             //querryArray[1] => now(
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + ", " + "null" + ", " + "null" + ", " + queryStartNanoTime + ")" + querryArray[3];
-        }else {
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + ", null, null, null)" + querryArray[3];
+        }
+        else
+        {
             throw new IndexOutOfBoundsException();
         }
     }

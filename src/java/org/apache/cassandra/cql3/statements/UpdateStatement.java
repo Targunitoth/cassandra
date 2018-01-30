@@ -18,10 +18,10 @@
 package org.apache.cassandra.cql3.statements;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.blockchain.HashBlock;
@@ -33,12 +33,7 @@ import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.CompactTables;
 import org.apache.cassandra.db.Slice;
 import org.apache.cassandra.db.marshal.TimeType;
-import org.apache.cassandra.db.marshal.TimeUUIDType;
-import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
-import org.apache.cassandra.db.rows.BufferCell;
-import org.apache.cassandra.db.rows.Cell;
-import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -78,8 +73,8 @@ public class UpdateStatement extends ModificationStatement
         //System.out.println("Type of insert is: " + type.toString());
 
         boolean hasBlockchainID = false;
-        String[] keyValues = new String[metadata.partitionKeyColumns().size() + metadata.clusteringColumns().size()];
-        int counter = 0;
+        //String[] keyValues = new String[metadata.partitionKeyColumns().size() + metadata.clusteringColumns().size()];
+        //int counter = 0;
 
         //Check if blockchain is part of the key
         for (ColumnMetadata key : metadata.partitionKeyColumns())
@@ -127,43 +122,45 @@ public class UpdateStatement extends ModificationStatement
             //insert Blockchain
             if (hasBlockchainID)
             {
-                System.out.println("Blockchain gefunden.");
-                System.out.println("Keyspace: " + update.metadata().keyspace);
-                System.out.println("Name: " + update.metadata().name);
-                System.out.println("UpdatedColumns: " + params.updatedColumns.toString());
-                System.out.println("Options: " + params.options.toString());
-                for (ByteBuffer b:params.options.getValues()                     )
-                {
-                    System.out.println("Option Values: " + b);
-                }
-
-                System.out.println("Options cons: " + params.options.getConsistency().toString());
-                //System.out.println("Options ks: " + params.options.getKeyspace().toString());
-                System.out.println("Options pg: " + params.options.getPageSize());
-                System.out.println("Options: " + params.options.toString());
-
-
-                System.out.println("Values: " + params.options.getValues().toString());
-
-
-                //TODO Comment und testen
                 ByteBuffer key = update.partitionKey().getKey();
                 ByteBuffer timestampBuffer = TimeType.instance.decompose(params.getTimestamp());
                 ByteBuffer predecessorBuffer = HashBlock.getBlockChainHead();
 
-                //Get the new Cell values from the insert
-                ByteBuffer[] cellValues = FormatHelper.ListToArray(params.options.getValues());
+                //TODO Fix HERE cellValues and Hash gets calculated wrong (maybe updates instead of params.options.getValues)
 
-                //Key will be used twice for calculation
-                for (int i = 0; i < cellValues.length; i++)
+
+                ByteBuffer[] cellValues;
+
+                //Direkt Values
+                if (updates != null && (updates.get(0).getTerm() instanceof Constants.Value))
                 {
-                    if (cellValues[i] != null && cellValues[i].equals(key))
+                    ArrayList<ByteBuffer> list = new ArrayList<>();
+                    for (Operation o : updates)
                     {
-                        cellValues[i] = null; //Kill key from list
+
+
+                        ByteBuffer value = ((Constants.Value) o.getTerm()).bytes;
+                        if (value != null && !value.equals(key))
+                        { //Kill empty Values and the key
+                            list.add(value);
+                        }
                     }
-                    if (cellValues[i] != null && cellValues[i].equals(TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"))))
+
+                    cellValues = new ByteBuffer[list.size()];
+                    list.toArray(cellValues);
+                }
+                else //working with marker
+                {
+                    //Get the new Cell values from the insert
+                    cellValues = FormatHelper.ListToArray(params.options.getValues());
+
+                    //Key will be used twice for calculation
+                    for (int i = 0; i < cellValues.length; i++)
                     {
-                        cellValues[i] = null; //Kill Dummys from list
+                        if (cellValues[i] != null && cellValues[i].equals(key))
+                        {
+                            cellValues[i] = null; //Kill key from list
+                        }
                     }
                 }
 
@@ -179,8 +176,13 @@ public class UpdateStatement extends ModificationStatement
                 ByteBuffer hashBuffer = HashBlock.generateAndSetHash(key, cellValues, timestampBuffer);
                 //System.out.println(FormatHelper.convertByteBufferToString(predecessorBuffer) + " " + FormatHelper.convertByteBufferToString(hashBuffer) + " " +FormatHelper.convertByteBufferToString(timestampBuffer));
 
+                //Get size
+                int index = updates.size();
 
-                params.options.updateValues(predecessorBuffer, hashBuffer, timestampBuffer);
+                //Update the Values
+                updates.set(index - 1, new Constants.Setter(updates.get(index - 1).column, new Constants.Value(timestampBuffer)));
+                updates.set(index - 2, new Constants.Setter(updates.get(index - 2).column, new Constants.Value(hashBuffer)));
+                updates.set(index - 3, new Constants.Setter(updates.get(index - 3).column, new Constants.Value(predecessorBuffer)));
             }
 
             for (Operation op : updates)

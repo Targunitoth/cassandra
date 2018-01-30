@@ -148,6 +148,7 @@ public class FunctionCall extends Term.NonTerminal
 
         public Term prepare(String keyspace, ColumnSpecification receiver) throws InvalidRequestException
         {
+            //TODO Hier hängt der now() befehl.
             Function fun = FunctionResolver.get(keyspace, name, terms, receiver.ksName, receiver.cfName, receiver.type);
             if (fun == null)
                 throw invalidRequest("Unknown function %s called", name);

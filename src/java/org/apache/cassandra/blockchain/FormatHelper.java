@@ -19,6 +19,7 @@
 package org.apache.cassandra.blockchain;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -36,12 +37,17 @@ public class FormatHelper
     {
         if (sb == null || !sb.hasArray())
             return "<empty>"; //TODO Return ""
-        String valueString = new String(sb.array());
+        //TODO Optimise this function!
+        //System.out.println("Check sb: " + sb);
+        byte[] content = Arrays.copyOfRange(sb.array(), sb.position(), sb.limit());
+        //byte[] content = new byte[sb.remaining()];
+        String valueString = new String(content);
+        //String valueString = new String(sb);.
 
         //If there are non-printable characters, print the value in hex format
         if (!StringUtils.isAsciiPrintable(valueString))
         {
-            valueString = asHex(sb.array());
+            valueString = asHex(content);
         }
         return valueString;
     }

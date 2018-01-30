@@ -377,9 +377,12 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
 
         public void printFormatet()
         {
+            ByteBuffer tmp;
             for (Map.Entry<String, ByteBuffer> entry : data.entrySet())
             {
-                System.out.println("Column: " + entry.getKey() + " \t-> Value: " + FormatHelper.convertByteBufferToString(entry.getValue()));
+                tmp = entry.getValue();
+                System.out.println("Column: " + entry.getKey() + " \t-> Value: " + FormatHelper.convertByteBufferToString(tmp));
+
             }
         }
     }

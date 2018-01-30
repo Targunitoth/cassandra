@@ -302,13 +302,12 @@ public class QueryProcessor implements QueryHandler
         //TODO Hack here for validate Blockchain
         if (validateTable(query)) return null;
         //TODO Hack here for Blockchain Insert
-        if(query.contains("INSERT") && query.contains(HashBlock.getBlockchainIDString())){
-
+        if (query.contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
+        {
 
 
             query = manipulateQuery(query);
             values = addValues(values);
-
         }
 
         ParsedStatement.Prepared prepared = prepareInternal(query);
@@ -320,33 +319,47 @@ public class QueryProcessor implements QueryHandler
     }
 
 
-
     public static boolean validateTable(String query)
     {
-        if (query.startsWith("VALIDATE TABLE"))
+        if (query.toUpperCase().startsWith("VALIDATE TABLE"))
         {
+            boolean iterative = true;
             String tableName = query.replace("VALIDATE TABLE", "").trim();
+
+            if (query.toUpperCase().contains("RECURSIVE"))
+            {
+                iterative = false;
+                tableName = tableName.replace("RECURSIVE", "").trim();
+            }
+            tableName = tableName.replace("ITERATIVE", "").trim();
+
             tableName = tableName.replace(";", "").trim();
 
-            //Validate Iterative
-            if (VerifyHashIterative.verify(tableName))
+            if (iterative)
             {
-                System.out.println("BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
+                //Validate Iterative
+                if (VerifyHashIterative.verify(tableName))
+                {
+                    System.out.println("BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
+                }
+                else
+                {
+                    System.out.println("BLOCKCHAIN VERIFICATION FAILED!");
+                }
             }
             else
             {
-                System.out.println("BLOCKCHAIN VERIFICATION FAILED!");
+                //Validate Recursive
+                if (VerifyHashRecursive.verify(tableName))
+                {
+                    System.out.println("RECURSIVE BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
+                }
+                else
+                {
+                    System.out.println("RECURSIVE BLOCKCHAIN VERIFICATION FAILED!");
+                }
             }
-
-            //Validate Recursive
-            if (VerifyHashRecursive.verify(tableName))
-            {
-                System.out.println("RECURSIVE BLOCKCHAIN CHECK PASSED: TABLE " + tableName + " is Valid!");
-            }
-            else
-            {
-                System.out.println("RECURSIVE BLOCKCHAIN VERIFICATION FAILED!");
-            }
+            //Stop Executing the Rest, this is a "VALIDATE TABLE" statement
             return true;
         }
         return false;
@@ -355,7 +368,8 @@ public class QueryProcessor implements QueryHandler
     private static String manipulateQuery(String query)
     {
         String TableString = "";
-        for(int i = 1; i < HashBlock.tables.length; i++){
+        for (int i = 1; i < HashBlock.tables.length; i++)
+        {
             TableString += ", " + HashBlock.tables[i];
         }
 
@@ -372,9 +386,11 @@ public class QueryProcessor implements QueryHandler
         {
             result[i++] = item;
         }
-        for(;i < result.length;i++){
+        for (; i < result.length; i++)
+        {
             //TODO TEMP for testing
-            result[i] = TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"));
+            //result[i] = TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"));
+            result[i] = null;
         }
         return result;
     }

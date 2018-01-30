@@ -496,6 +496,13 @@ public abstract class Message
             super(false);
         }
 
+        boolean debug = false;
+
+        //Call this function if you want to debug
+        public void setDebug(){
+            debug = true;
+        }
+
         @Override
         public void channelRead0(ChannelHandlerContext ctx, Request request)
         {
@@ -511,6 +518,12 @@ public abstract class Message
                 if (connection.getVersion().isGreaterOrEqualTo(ProtocolVersion.V4))
                     ClientWarn.instance.captureWarnings();
 
+                //TODO For Debugging Only!
+                if(debug) //IF debug simulate connection
+                {
+                    connection.applyStateTransition(Message.Type.STARTUP, Message.Type.READY);
+                }
+
                 QueryState qstate = connection.validateNewMessage(request.type, connection.getVersion(), request.getStreamId());
 
                 logger.trace("Received: {}, v={}", request, connection.getVersion());
@@ -523,8 +536,11 @@ public abstract class Message
             catch (Throwable t)
             {
                 JVMStabilityInspector.inspectThrowable(t);
-                UnexpectedChannelExceptionHandler handler = new UnexpectedChannelExceptionHandler(ctx.channel(), true);
-                flush(new FlushItem(ctx, ErrorMessage.fromException(t, handler).setStreamId(request.getStreamId()), request.getSourceFrame()));
+                if(!debug)
+                {
+                    UnexpectedChannelExceptionHandler handler = new UnexpectedChannelExceptionHandler(ctx.channel(), true);
+                    flush(new FlushItem(ctx, ErrorMessage.fromException(t, handler).setStreamId(request.getStreamId()), request.getSourceFrame()));
+                }
                 return;
             }
             finally
@@ -533,7 +549,10 @@ public abstract class Message
             }
 
             logger.trace("Responding: {}, v={}", response, connection.getVersion());
-            flush(new FlushItem(ctx, response, request.getSourceFrame()));
+            if(!debug)
+            {
+                flush(new FlushItem(ctx, response, request.getSourceFrame()));
+            }
         }
 
         private void flush(FlushItem item)

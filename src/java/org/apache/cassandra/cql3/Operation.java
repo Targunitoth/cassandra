@@ -62,6 +62,10 @@ public abstract class Operation
             t.addFunctionsTo(functions);
     }
 
+    public Term getTerm(){
+        return t;
+    }
+
     /**
      * @return whether the operation requires a read of the previous value to be executed
      * (only lists setterByIdx, discard and discardByIdx requires that).

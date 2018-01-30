@@ -25,16 +25,22 @@ import java.util.UUID;
 
 import com.datastax.driver.core.utils.UUIDs;
 import com.sun.jersey.api.NotFoundException;
+import io.netty.channel.ChannelOutboundBuffer;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.ResultSet;
 import org.apache.cassandra.cql3.UntypedResultSet;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.marshal.TimeType;
 import org.apache.cassandra.db.marshal.TimestampType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.AlreadyExistsException;
+import org.apache.cassandra.index.sasi.disk.OnDiskIndex;
+import org.apache.cassandra.schema.KeyspaceMetadata;
+import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.transport.Message;
 
 public class HashBlock
 {
@@ -49,10 +55,11 @@ public class HashBlock
     private static ByteBuffer blockChainHead = null;
     private static String predecessorHash = "";
 
-    //TODO Can be empty string, only for debugging
+    //TODO Can be empty string, only for debugging relevant
     private static String delimiter = "|";
 
     private static boolean init = false;
+    private static boolean debug = false;
 
 
     public static ByteBuffer getBlockChainHead()
@@ -60,8 +67,8 @@ public class HashBlock
         //Am anfang ist der header leer, dann gib 0 zurück
         if (blockChainHead == null)
         {
-            if(!init){
-                init = true;
+            if (!init)
+            {
                 init();
             }
             return nullBlock;
@@ -72,18 +79,23 @@ public class HashBlock
         }
     }
 
-    private static void init(){
-        try{
-            QueryProcessor.executeInternal("create table system.blockchain (nullblock uuid primary key, hash text, predecessor uuid)");
-            saveNewHead();
-        }catch (AlreadyExistsException e){
-            restoreData();
-        }
+    private static void init()
+    {
+        init = true;
+        restoreData();
     }
 
     private static void restoreData()
     {
-        UntypedResultSet rs = QueryProcessor.executeInternal("SELECT hash, predecessor FROM system.blockchain WHERE nullblock + = ?", getNullBlock());
+        UntypedResultSet rs;
+        if (!debug)
+        {
+            rs = QueryProcessor.execute("SELECT hash, predecessor FROM blockchain.blockchainheader WHERE nullblock = ?;", ConsistencyLevel.ONE, getNullBlock());
+        }
+        else
+        {
+            rs = QueryProcessor.executeInternal("SELECT hash, predecessor FROM blockchain.blockchainheader WHERE nullblock = ?;", getNullBlock());
+        }
         predecessorHash = rs.one().getString("hash");
         blockChainHead = rs.one().getBytes("predecessor");
     }
@@ -94,12 +106,18 @@ public class HashBlock
         blockChainHead = newHead;
         //Save in database
         saveNewHead();
-        //TODO Optional anounce new Head with gossip
     }
 
     private static void saveNewHead()
     {
-        QueryProcessor.executeInternal("INSERT INTO system.blockchain (nullblock, hash, predecessor) values (?, ?, ?)", getNullBlock(), getPredecessorHash(), getBlockChainHead());
+        if (!debug)
+        {
+            QueryProcessor.execute("INSERT INTO blockchain.blockchainheader (nullblock, hash, predecessor) values (?, ?, ?);", ConsistencyLevel.ONE, getNullBlock(), getPredecessorHash(), getBlockChainHead());
+        }
+        else
+        {
+            QueryProcessor.executeInternal("INSERT INTO blockchain.blockchainheader (nullblock, hash, predecessor) values (?, ?, ?);", getNullBlock(), getPredecessorHash(), getBlockChainHead());
+        }
     }
 
     /***
@@ -171,8 +189,8 @@ public class HashBlock
 
     public static ColumnIdentifier getIdentifer(String tablename)
     {
-        if(!init){
-            init = true;
+        if (!init)
+        {
             init();
         }
         int index = -1;
@@ -200,5 +218,35 @@ public class HashBlock
     public static String getPredecessorHash()
     {
         return predecessorHash;
+    }
+
+    public static void createHeaderTable()
+    {
+        blockChainHead = null;
+        predecessorHash = "";
+        init = true;
+        if (!debug)
+        {
+            QueryProcessor.execute("CREATE KEYSPACE IF NOT EXISTS blockchain WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};", ConsistencyLevel.ONE);
+        }
+        else
+        {
+            QueryProcessor.executeInternal("CREATE KEYSPACE IF NOT EXISTS blockchain WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 2};");
+        }
+        if (!debug)
+        {
+            QueryProcessor.execute("CREATE TABLE blockchain.blockchainheader (nullblock uuid primary key, hash text, predecessor uuid);", ConsistencyLevel.ONE);
+        }
+        else
+        {
+            QueryProcessor.executeInternal("create table blockchain.blockchainheader (nullblock uuid primary key, hash text, predecessor uuid);");
+        }
+
+        saveNewHead();
+    }
+
+    public static void setDebug(boolean debug)
+    {
+        HashBlock.debug = debug;
     }
 }

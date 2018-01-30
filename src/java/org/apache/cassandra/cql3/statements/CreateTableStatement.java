@@ -399,6 +399,7 @@ public class CreateTableStatement extends SchemaAlteringStatement
             addDef(def, type, isStatic);
             if(def != null && def.toString().toLowerCase().contains(HashBlock.getBlockchainIDString())){
                 System.out.println("Column name blockchainid was detected");
+                HashBlock.createHeaderTable();
                 addBlockchainDefinition(false);
                 HashBlock.identifier[0] = def;
             }

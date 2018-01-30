@@ -17,13 +17,38 @@
  */
 package org.apache.cassandra.cql3;
 
+import java.net.SocketAddress;
 import java.util.UUID;
 
 import org.junit.Test;
 
 import com.datastax.driver.core.utils.UUIDs;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.AbstractChannel;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelProgressivePromise;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.local.LocalServerChannel;
+import io.netty.util.Attribute;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.EventExecutor;
 import org.apache.cassandra.blockchain.FormatHelper;
+import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.db.ConsistencyLevel;
+import org.apache.cassandra.service.ClientState;
+import org.apache.cassandra.service.QueryState;
+import org.apache.cassandra.transport.Connection;
+import org.apache.cassandra.transport.Message;
+import org.apache.cassandra.transport.ProtocolVersion;
+import org.apache.cassandra.transport.Server;
+import org.apache.cassandra.transport.ServerConnection;
 import org.apache.cassandra.transport.messages.QueryMessage;
+
+import static org.apache.cassandra.db.ConsistencyLevel.*;
 
 
 public class SimpleQueryTest extends CQLTester
@@ -79,6 +104,7 @@ public class SimpleQueryTest extends CQLTester
     @Test
     public void BlockchainTest() throws Throwable
     {
+        HashBlock.setDebug(true);
         // Create a blockchain table
         createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount double)");
 
@@ -112,12 +138,36 @@ public class SimpleQueryTest extends CQLTester
     }
 
     @Test
-    public void BlockchainQueryTest() throws Throwable{
-        // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount double)");
+    public void RealBlockchainQueryTest() throws Throwable{
 
-        //QueryOptions op = new QueryOptions.DefaultQueryOptions();
-        //QueryMessage qm = new QueryMessage("INSERT INTO mytable (blockchainid, source, destination, amount) VALUES (550e8400-e29b-11d4-a716-446655440005, 'Alice', 'Bob', 100)", op);
+        HashBlock.setDebug(true);
+        // Create a blockchain table
+        createTable("CREATE TABLE cql_test_keyspace.mytable (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
+
+        //TODO: Goal
+        Connection con = new ServerConnection(new LocalServerChannel(), ProtocolVersion.V4, new Server.ConnectionTracker());
+        Message.Dispatcher msg = new Message.Dispatcher();
+        msg.setDebug();
+
+        QueryOptions op =  QueryOptions.DEFAULT;
+        //Message.Request msgrq = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (550e8400-e29b-11d4-a716-446655440005, 'Alice', 'Bob', 100);", op);
+        Message.Request msgrq = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), 'Alice', 'Bob', 100);", op);
+        msgrq.attach(con);
+        msg.channelRead0(null, msgrq);
+
+        Message.Request msgrq2 = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), 'C', 'D', 5);", op);
+        msgrq2.attach(con);
+        msg.channelRead0(null, msgrq2);
+
+
+        System.out.println("SELCET *:");
+        UntypedResultSet urs = execute("SELECT * FROM cql_test_keyspace.mytable");
+        for (UntypedResultSet.Row row : urs)
+        {
+            System.out.println("New Row:");
+            row.printFormatet();
+        }
+
         //qm.execute();
     }
 
