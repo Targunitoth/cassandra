@@ -60,8 +60,7 @@ public class VerifyHashIterative extends VerifyHash
     private static void generateTable()
     {
         table = new HashMap<>();
-        Object[] obj = new Object[0];
-        UntypedResultSet rs = QueryProcessor.executeInternal("SELECT * FROM " + tableName, obj);
+        UntypedResultSet rs = FormatHelper.executeQuery("SELECT * FROM " + tableName);
         String columname;
 
         for (UntypedResultSet.Row row : rs)
@@ -172,7 +171,13 @@ public class VerifyHashIterative extends VerifyHash
                 }
                 else if (cmname.equals("hash"))
                 {
-                    lastHash = UTF8Type.instance.compose(table.get(orderedkey).get(cmname));
+                    if(table.get(orderedkey).get(cmname) != null)
+                    {
+                        lastHash = UTF8Type.instance.compose(table.get(orderedkey).get(cmname));
+                    }
+                    else{
+                        lastHash = "";
+                    }
                 }
                 else
                 {

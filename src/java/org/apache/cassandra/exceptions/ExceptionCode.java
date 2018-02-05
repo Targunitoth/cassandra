@@ -53,7 +53,11 @@ public enum ExceptionCode
     UNPREPARED      (0x2500),
 
     // 3xx: problem with blockchain
-    BLOCKCHAIN_BROKEN     (0x3000);
+    BLOCKCHAIN_BROKEN     (0x3000),
+    SPEND_TO_MUCH         (0x3200),
+    VALIDATION_FAILED     (0x3300),
+    NO_SIGNATURE          (0x3400),
+    NEGAIVE_AMOUNT        (0x3100);
 
     public final int value;
     private static final Map<Integer, ExceptionCode> valueToCode = new HashMap<>(ExceptionCode.values().length);

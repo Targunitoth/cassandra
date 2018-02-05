@@ -53,6 +53,11 @@ public abstract class AbstractMarker extends Term.NonTerminal
     {
     }
 
+    @Override
+    public int getBindIndex(){
+        return bindIndex;
+    }
+
     /**
      * A parsed, but non prepared, bind marker.
      */

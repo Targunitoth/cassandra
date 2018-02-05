@@ -18,6 +18,7 @@
  */
 package org.apache.cassandra.cql3;
 
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -263,6 +264,8 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
             return data.get(column);
         }
 
+
+
         public String getString(String column)
         {
             return UTF8Type.instance.compose(data.get(column));
@@ -271,6 +274,11 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
         public boolean getBoolean(String column)
         {
             return BooleanType.instance.compose(data.get(column));
+        }
+
+        public BigInteger getVarint(String column)
+        {
+            return IntegerType.instance.compose(data.get(column));
         }
 
         public byte getByte(String column)

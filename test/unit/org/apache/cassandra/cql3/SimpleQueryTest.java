@@ -106,14 +106,16 @@ public class SimpleQueryTest extends CQLTester
     {
         HashBlock.setDebug(true);
         // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount double)");
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
 
         // Transaction
-        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100.0);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Bob", 100);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100.0);
+        //execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign(Alice))", UUIDs.timeBased(), "Alice", "Carl", 100);
 
-        execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Bob", "Alice", 50.0);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign('Bob'))", UUIDs.timeBased(), "Bob", "Alice", 50);
 
         // Print all data
         System.out.println("SELCET *:");
@@ -151,11 +153,11 @@ public class SimpleQueryTest extends CQLTester
 
         QueryOptions op =  QueryOptions.DEFAULT;
         //Message.Request msgrq = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (550e8400-e29b-11d4-a716-446655440005, 'Alice', 'Bob', 100);", op);
-        Message.Request msgrq = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), 'Alice', 'Bob', 100);", op);
+        Message.Request msgrq = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), null, 'Bob', 100);", op);
         msgrq.attach(con);
         msg.channelRead0(null, msgrq);
 
-        Message.Request msgrq2 = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), 'C', 'D', 5);", op);
+        Message.Request msgrq2 = new QueryMessage("INSERT INTO cql_test_keyspace.mytable (blockchainid, source, destination, amount) VALUES (now(), 'Bob', 'Alice', 5);", op);
         msgrq2.attach(con);
         msg.channelRead0(null, msgrq2);
 

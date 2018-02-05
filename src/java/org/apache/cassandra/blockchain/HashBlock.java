@@ -44,8 +44,8 @@ import org.apache.cassandra.transport.Message;
 
 public class HashBlock
 {
-    public final static String tables[] = { "blockchainid", "predecessor", "hash", "timestamp" };
-    public final static CQL3Type.Native types[] = { CQL3Type.Native.TIMEUUID, CQL3Type.Native.TIMEUUID, CQL3Type.Native.TEXT, CQL3Type.Native.TIMESTAMP };
+    public final static String tables[] = { "blockchainid", "signature", "timestamp", "predecessor", "hash" };
+    public final static CQL3Type.Native types[] = { CQL3Type.Native.TIMEUUID,  CQL3Type.Native.BLOB, CQL3Type.Native.TIMESTAMP, CQL3Type.Native.TIMEUUID, CQL3Type.Native.TEXT };
     public static ColumnIdentifier identifier[];
 
     //Set nullBlock to ones for debugging
@@ -60,6 +60,7 @@ public class HashBlock
 
     private static boolean init = false;
     private static boolean debug = false;
+    private static DigitalSignature ds;
 
 
     public static ByteBuffer getBlockChainHead()
@@ -151,6 +152,9 @@ public class HashBlock
         //Add timestamp
         input += delimiter + "" + FormatHelper.convertByteBufferToString(timestamp);
 
+        //Remove null values
+        cellValues = FormatHelper.removeNull(cellValues);
+
         //Sort the array to make sure to always geht the same order before hashing
         Arrays.sort(cellValues);
         //Add the value of the cells
@@ -225,28 +229,34 @@ public class HashBlock
         blockChainHead = null;
         predecessorHash = "";
         init = true;
-        if (!debug)
-        {
-            QueryProcessor.execute("CREATE KEYSPACE IF NOT EXISTS blockchain WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};", ConsistencyLevel.ONE);
-        }
-        else
-        {
-            QueryProcessor.executeInternal("CREATE KEYSPACE IF NOT EXISTS blockchain WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 2};");
-        }
-        if (!debug)
-        {
-            QueryProcessor.execute("CREATE TABLE blockchain.blockchainheader (nullblock uuid primary key, hash text, predecessor uuid);", ConsistencyLevel.ONE);
-        }
-        else
-        {
-            QueryProcessor.executeInternal("create table blockchain.blockchainheader (nullblock uuid primary key, hash text, predecessor uuid);");
-        }
+        FormatHelper.executeQuery("CREATE KEYSPACE IF NOT EXISTS blockchain WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};");
+        FormatHelper.executeQuery("CREATE TABLE IF NOT EXISTS blockchain.blockchainheader (nullblock UUID PRIMARY KEY, hash TEXT, predecessor UUID);");
+        FormatHelper.executeQuery("CREATE TABLE IF NOT EXISTS blockchain.keydatabase (user TEXT PRIMARY KEY, p VARINT, q VARINT, g VARINT, x VARINT, y VARINT);");
 
         saveNewHead();
+
+        ds = new DigitalSignature();
     }
 
     public static void setDebug(boolean debug)
     {
         HashBlock.debug = debug;
+    }
+
+    public static boolean getDebug()
+    {
+        return debug;
+    }
+
+    public static DigitalSignature getDs()
+    {
+        return ds;
+    }
+
+    public static void initDS()
+    {
+        if(ds == null){
+            ds = new DigitalSignature();
+        }
     }
 }

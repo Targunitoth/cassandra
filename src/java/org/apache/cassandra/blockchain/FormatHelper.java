@@ -24,6 +24,9 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.cassandra.cql3.QueryProcessor;
+import org.apache.cassandra.cql3.UntypedResultSet;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.marshal.UUIDType;
 
 public class FormatHelper
@@ -145,5 +148,19 @@ public class FormatHelper
             result[index++] = item;
         }
         return result;
+    }
+
+    public static UntypedResultSet executeQuery(String query)
+    {
+        UntypedResultSet rs;
+        if (HashBlock.getDebug())
+        {
+            rs = QueryProcessor.executeInternal(query);
+        }
+        else
+        {
+            rs = QueryProcessor.execute(query, ConsistencyLevel.ONE);
+        }
+        return rs;
     }
 }

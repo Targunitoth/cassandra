@@ -80,6 +80,8 @@ public interface Term
 
     public void addFunctionsTo(List<Function> functions);
 
+    default public int getBindIndex() {return 0;};
+
     /**
      * A parsed, non prepared (thus untyped) term.
      *

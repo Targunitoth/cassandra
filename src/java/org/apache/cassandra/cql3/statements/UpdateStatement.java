@@ -18,11 +18,16 @@
 package org.apache.cassandra.cql3.statements;
 
 import java.nio.ByteBuffer;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.lang.NotImplementedException;
+
+import org.apache.cassandra.blockchain.ConstraintValidator;
+import org.apache.cassandra.blockchain.DigitalSignature;
 import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.cql3.*;
@@ -33,6 +38,7 @@ import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.CompactTables;
 import org.apache.cassandra.db.Slice;
 import org.apache.cassandra.db.marshal.TimeType;
+import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
@@ -48,6 +54,10 @@ import static org.apache.cassandra.cql3.statements.RequestValidations.checkTrue;
  */
 public class UpdateStatement extends ModificationStatement
 {
+
+    //Toggle expensive validations
+    boolean useValidator = true;
+
     private static final Constants.Value EMPTY = new Constants.Value(ByteBufferUtil.EMPTY_BYTE_BUFFER);
 
     private UpdateStatement(StatementType type,
@@ -122,24 +132,51 @@ public class UpdateStatement extends ModificationStatement
             //insert Blockchain
             if (hasBlockchainID)
             {
+
                 ByteBuffer key = update.partitionKey().getKey();
                 ByteBuffer timestampBuffer = TimeType.instance.decompose(params.getTimestamp());
                 ByteBuffer predecessorBuffer = HashBlock.getBlockChainHead();
 
-                //TODO Fix HERE cellValues and Hash gets calculated wrong (maybe updates instead of params.options.getValues)
+                //TODO Check the values
+                ByteBuffer source = null;
+                ByteBuffer dest = null;
+                ByteBuffer amount = null;
+
 
 
                 ByteBuffer[] cellValues;
 
+                boolean withoutplaceholder = (updates != null && (updates.get(0).getTerm() instanceof Constants.Value));
+
                 //Direkt Values
-                if (updates != null && (updates.get(0).getTerm() instanceof Constants.Value))
+                if (withoutplaceholder)
                 {
                     ArrayList<ByteBuffer> list = new ArrayList<>();
                     for (Operation o : updates)
                     {
 
-
                         ByteBuffer value = ((Constants.Value) o.getTerm()).bytes;
+
+
+                        switch (o.column.name.toString())
+                        {
+                            case "amount":
+                                amount = value;
+                                break;
+                            case "source":
+                                source = value;
+                                break;
+                            case "destination":
+                                dest = value;
+                                break;
+                            /*case "sigantur":
+                                sig = value;
+                                break;*/
+                            default:
+                                break;
+                        }
+
+
                         if (value != null && !value.equals(key))
                         { //Kill empty Values and the key
                             list.add(value);
@@ -154,6 +191,29 @@ public class UpdateStatement extends ModificationStatement
                     //Get the new Cell values from the insert
                     cellValues = FormatHelper.ListToArray(params.options.getValues());
 
+                    for (Operation o : updates)
+                    {
+                        ByteBuffer value = cellValues[o.getTerm().getBindIndex()];
+
+                        switch (o.column.name.toString())
+                        {
+                            /*case "sigantur":
+                                sig = value;
+                                break;*/
+                            case "amount":
+                                amount = value;
+                                break;
+                            case "source":
+                                source = value;
+                                break;
+                            case "destination":
+                                dest = value;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
                     //Key will be used twice for calculation
                     for (int i = 0; i < cellValues.length; i++)
                     {
@@ -164,6 +224,17 @@ public class UpdateStatement extends ModificationStatement
                     }
                 }
 
+                //Create signature if sing(Alice) was used
+                ByteBuffer sig = HashBlock.getDs().createSignature(source, dest, amount, timestampBuffer);
+
+                //Validat the staff
+                if (useValidator)
+                {
+                    ConstraintValidator cv = new ConstraintValidator(amount, source, metadata);
+                    cv.validateMoney();
+                    cv.validateSignature(dest, sig, timestampBuffer);
+                }
+
                 //Maybe this is wrong, but else we miss clustering columns for calculation
                 cellValues = FormatHelper.concat(clustering.getRawValues(), cellValues);
 
@@ -172,17 +243,21 @@ public class UpdateStatement extends ModificationStatement
 
                 //Don't forget to add the predecessor
                 cellValues = FormatHelper.addElement(cellValues, predecessorBuffer);
+                cellValues = FormatHelper.addElement(cellValues, sig);
 
                 ByteBuffer hashBuffer = HashBlock.generateAndSetHash(key, cellValues, timestampBuffer);
-                //System.out.println(FormatHelper.convertByteBufferToString(predecessorBuffer) + " " + FormatHelper.convertByteBufferToString(hashBuffer) + " " +FormatHelper.convertByteBufferToString(timestampBuffer));
 
                 //Get size
                 int index = updates.size();
 
                 //Update the Values
-                updates.set(index - 1, new Constants.Setter(updates.get(index - 1).column, new Constants.Value(timestampBuffer)));
-                updates.set(index - 2, new Constants.Setter(updates.get(index - 2).column, new Constants.Value(hashBuffer)));
-                updates.set(index - 3, new Constants.Setter(updates.get(index - 3).column, new Constants.Value(predecessorBuffer)));
+                updates.set(index - 1, new Constants.Setter(updates.get(index - 1).column, new Constants.Value(hashBuffer)));
+                updates.set(index - 2, new Constants.Setter(updates.get(index - 2).column, new Constants.Value(predecessorBuffer)));
+                updates.set(index - 3, new Constants.Setter(updates.get(index - 3).column, new Constants.Value(timestampBuffer)));
+                //Do nothing if sig is already null
+                if(sig != null) {
+                    updates.set(index - 4, new Constants.Setter(updates.get(index - 4).column, new Constants.Value(sig)));
+                }
             }
 
             for (Operation op : updates)

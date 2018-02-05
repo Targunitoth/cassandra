@@ -98,8 +98,7 @@ public class QueryMessage extends Message.Request
     {
         try
         {
-            //System.out.println("My old Query: " + query);
-            //TODO Hack here for validate Blockchain
+            //Hack here for validate Blockchain
             if (QueryProcessor.validateTable(query)) return new ResultMessage.Void();
 
             if (options.getPageSize() == 0)
@@ -108,6 +107,11 @@ public class QueryMessage extends Message.Request
             //Hack here for cqlsh insert command
             if (query.toUpperCase().contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
             {
+                //TODO Hack Here for sign()!!!!! as value
+                if(query.toUpperCase().contains("SIGN(")){
+                    query = QueryProcessor.generateSignature(query);
+                }
+
                 manipulateQuery(queryStartNanoTime);
                 System.out.println("My new Query: " + query);
             }
@@ -161,10 +165,16 @@ public class QueryMessage extends Message.Request
     private void manipulateQuery(long queryStartNanoTime)
     {
         String TableString = "";
-        //Skip Nr. 1 (key)
-        for (int i = 1; i < HashBlock.tables.length; i++)
+        //Skip Nr. 1 (key) and Nr. 2 (signature)
+        for (int i = 2; i < HashBlock.tables.length; i++)
         {
             TableString += ", " + HashBlock.tables[i];
+        }
+
+        String nullString = "";
+        for (int i = 2; i < HashBlock.tables.length; i++)
+        {
+            nullString += ", null";
         }
 
         //TODO Optional generate Hashblock here.
@@ -173,16 +183,16 @@ public class QueryMessage extends Message.Request
         String[] querryArray = query.split("\\)");
         if (querryArray.length == 3)
         {
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ", null, null, null)" + querryArray[2];
+            query = querryArray[0] + TableString + ")" + querryArray[1] + nullString +")" + querryArray[2];
         }
         else if (querryArray.length == 2)
         { //Without Semicolon
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ", null, null, null)";
+            query = querryArray[0] + TableString + ")" + querryArray[1] + nullString +")";
         }
         else if (querryArray.length == 4)
         { //Case with now
             //querryArray[1] => now(
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + ", null, null, null)" + querryArray[3];
+            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + nullString +")" + querryArray[3];
         }
         else
         {

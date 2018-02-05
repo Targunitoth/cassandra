@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.*;
+import org.apache.cassandra.blockchain.DigitalSignature;
 import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.blockchain.VerifyHashIterative;
 import org.apache.cassandra.blockchain.VerifyHashRecursive;
@@ -299,12 +300,14 @@ public class QueryProcessor implements QueryHandler
 
     public static UntypedResultSet executeInternal(String query, Object... values)
     {
-        //TODO Hack here for validate Blockchain
+        //Hack here for validate Blockchain
         if (validateTable(query)) return null;
-        //TODO Hack here for Blockchain Insert
+        //Hack here for Blockchain Insert
         if (query.contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
         {
-
+            if(query.toUpperCase().contains("SIGN(")){
+                query = generateSignature(query);
+            }
 
             query = manipulateQuery(query);
             values = addValues(values);
@@ -323,6 +326,8 @@ public class QueryProcessor implements QueryHandler
     {
         if (query.toUpperCase().startsWith("VALIDATE TABLE"))
         {
+
+
             boolean iterative = true;
             String tableName = query.replace("VALIDATE TABLE", "").trim();
 
@@ -334,6 +339,10 @@ public class QueryProcessor implements QueryHandler
             tableName = tableName.replace("ITERATIVE", "").trim();
 
             tableName = tableName.replace(";", "").trim();
+
+            if (query.toUpperCase().contains("SIGNATURE")){
+                DigitalSignature.vaidateTable(tableName.replace("SIGNATURE", "").trim());
+            }
 
             if (iterative)
             {
@@ -365,22 +374,42 @@ public class QueryProcessor implements QueryHandler
         return false;
     }
 
+    public static String generateSignature(String query)
+    {
+        String[] splitQuery = query.toLowerCase().split("sign\\(");
+        String[] name = splitQuery[1].split("\\)");
+        assert name.length > 0 && !name[0].isEmpty(): "Syntax error. Use sign(alice) instead of sign()";
+        DigitalSignature ds = HashBlock.getDs();
+        ds.triggerCreateSignature(name[0].replace("\"", "").replace("'", "").trim());
+        //Set the Value to null to change it later
+        return query.replaceFirst("sign\\((.*?)\\)", "null").replaceFirst("SIGN\\((.*?)\\)", "null");
+    }
+
     private static String manipulateQuery(String query)
     {
+        String[] splitQuery = query.split("values");
         String TableString = "";
-        for (int i = 1; i < HashBlock.tables.length; i++)
+        //Start at 2, ignore Key and Signature
+        for (int i = 2; i < HashBlock.tables.length; i++)
         {
             TableString += ", " + HashBlock.tables[i];
         }
 
-        query = query.replaceFirst("\\)", TableString + "\\)");
+        splitQuery[0] = splitQuery[0].replaceFirst("\\)", TableString + "\\)");
 
-        return query.replaceFirst("\\?", "\\?, \\?, \\?, \\?");
+        String replaementString = "";
+        for(int i = 2; i < HashBlock.tables.length; i++){
+            replaementString += ", ?";
+        }
+
+        splitQuery[1] = splitQuery[1].replaceFirst("\\)", replaementString + "\\)");
+
+        return splitQuery[0] + "values" + splitQuery[1];
     }
 
     private static Object[] addValues(Object[] values)
     {
-        Object[] result = new Object[values.length + 3];
+        Object[] result = new Object[values.length + HashBlock.tables.length - 2];
         int i = 0;
         for (Object item : values)
         {
@@ -388,8 +417,6 @@ public class QueryProcessor implements QueryHandler
         }
         for (; i < result.length; i++)
         {
-            //TODO TEMP for testing
-            //result[i] = TimeUUIDType.instance.decompose(UUID.fromString("ffffffff-ffff-1fff-bf7f-7f7f7f7f7f7f"));
             result[i] = null;
         }
         return result;
