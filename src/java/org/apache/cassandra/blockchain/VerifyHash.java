@@ -38,12 +38,14 @@ public abstract class VerifyHash
 
     protected static void loadMetadata()
     {
-        assert tableName != "": "Table name must be set!";
-        if(tableName.contains("."))
+        assert tableName != "" : "Table name must be set!";
+        if (tableName.contains("."))
         {
             String[] tableNameSplit = tableName.split("\\.");
             metadata = Schema.instance.validateTable(tableNameSplit[0], tableNameSplit[1]);
-        }else {
+        }
+        else
+        {
             System.out.println("Please provide a keyspace. Trying default: mykeyspace.");
             metadata = Schema.instance.validateTable("mykeyspace", tableName);
         }

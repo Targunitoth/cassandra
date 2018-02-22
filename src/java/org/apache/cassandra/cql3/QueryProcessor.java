@@ -18,7 +18,6 @@
 package org.apache.cassandra.cql3;
 
 import java.nio.ByteBuffer;
-import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -37,13 +36,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.*;
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.blockchain.DigitalSignature;
-import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.blockchain.VerifyHashIterative;
 import org.apache.cassandra.blockchain.VerifyHashRecursive;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.marshal.TimeUUIDType;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaChangeListener;
 import org.apache.cassandra.schema.SchemaConstants;
@@ -303,7 +301,7 @@ public class QueryProcessor implements QueryHandler
         //Hack here for validate Blockchain
         if (validateTable(query)) return null;
         //Hack here for Blockchain Insert
-        if (query.contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
+        if (query.contains("INSERT") && query.contains(BlockchainHandler.getBlockchainIDString()))
         {
             if(query.toUpperCase().contains("SIGN(")){
                 query = generateSignature(query);
@@ -379,7 +377,7 @@ public class QueryProcessor implements QueryHandler
         String[] splitQuery = query.toLowerCase().split("sign\\(");
         String[] name = splitQuery[1].split("\\)");
         assert name.length > 0 && !name[0].isEmpty(): "Syntax error. Use sign(alice) instead of sign()";
-        DigitalSignature ds = HashBlock.getDs();
+        DigitalSignature ds = BlockchainHandler.getDs();
         ds.triggerCreateSignature(name[0].replace("\"", "").replace("'", "").trim());
         //Set the Value to null to change it later
         return query.replaceFirst("sign\\((.*?)\\)", "null").replaceFirst("SIGN\\((.*?)\\)", "null");
@@ -387,18 +385,18 @@ public class QueryProcessor implements QueryHandler
 
     private static String manipulateQuery(String query)
     {
-        String[] splitQuery = query.split("values");
+        String[] splitQuery = query.split("(?i)values");
         String TableString = "";
         //Start at 2, ignore Key and Signature
-        for (int i = 2; i < HashBlock.tables.length; i++)
+        for (int i = 2; i < BlockchainHandler.tables.length; i++)
         {
-            TableString += ", " + HashBlock.tables[i];
+            TableString += ", " + BlockchainHandler.tables[i];
         }
 
         splitQuery[0] = splitQuery[0].replaceFirst("\\)", TableString + "\\)");
 
         String replaementString = "";
-        for(int i = 2; i < HashBlock.tables.length; i++){
+        for(int i = 2; i < BlockchainHandler.tables.length; i++){
             replaementString += ", ?";
         }
 
@@ -409,7 +407,7 @@ public class QueryProcessor implements QueryHandler
 
     private static Object[] addValues(Object[] values)
     {
-        Object[] result = new Object[values.length + HashBlock.tables.length - 2];
+        Object[] result = new Object[values.length + BlockchainHandler.tables.length - 2];
         int i = 0;
         for (Object item : values)
         {
@@ -431,6 +429,9 @@ public class QueryProcessor implements QueryHandler
     public static UntypedResultSet execute(String query, ConsistencyLevel cl, QueryState state, Object... values)
     throws RequestExecutionException
     {
+        System.out.println( "DEBUG: " + query.toString());
+        System.out.println( "DEBUG: " + cl.toString());
+        //TODO
         try
         {
             ParsedStatement.Prepared prepared = prepareInternal(query);

@@ -19,9 +19,11 @@
 package org.apache.cassandra.blockchain;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
 
 import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.marshal.Int32Type;
+import org.apache.cassandra.db.marshal.TimeUUIDType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.exceptions.NegativeAmountException;
 import org.apache.cassandra.exceptions.NoSignatureException;
@@ -31,45 +33,108 @@ import org.apache.cassandra.schema.TableMetadata;
 
 public class ConstraintValidator
 {
-    ByteBuffer amount;
-    ByteBuffer source;
+    ByteBuffer keyBuffer;
+    ByteBuffer amountBuffer;
+    ByteBuffer sourceBuffer;
     TableMetadata metadata;
+    int amount = 0;
+    String source = "";
 
     //TODO Create a List of all possible entries, with Key, Pre, amount, sorce, dest ===> Lock at iterate hash
     //TODO Oder nur Key + pre und dann select???
 
-    public ConstraintValidator(ByteBuffer amount, ByteBuffer source, TableMetadata metadata)
+    public ConstraintValidator(ByteBuffer key, ByteBuffer amount, ByteBuffer source, TableMetadata metadata)
     {
-        this.amount = amount;
-        this.source = source;
+        assert amount != null : "Value can not be null";
+        this.amountBuffer = amount;
+        this.sourceBuffer = source;
         this.metadata = metadata;
+        this.keyBuffer = key;
+        if (source != null)
+        {
+            this.source = UTF8Type.instance.compose(source);
+        }
+        if (amount != null)
+        {
+            this.amount = Int32Type.instance.compose(amount);
+        }
     }
 
     public boolean validateMoney()
     {
-        //Amount must be positiv
-        Integer money = Int32Type.instance.compose(amount);
-        if(money < 0){
+        if (amount < 0)
+        {
             //Throw Exception for debugging
-            throw new NegativeAmountException(money);
+            throw new NegativeAmountException(amount);
             //return false;
         }
 
         //Bring money into the system
-        if(source == null){
+        if (sourceBuffer == null)
+        {
             return true;
         }
 
-        //TODO Calc source money only from Blockchain
-        UntypedResultSet rs = FormatHelper.executeQuery("SELECT sum(amount) FROM " + metadata.keyspace + "." + metadata.name + " WHERE destination = '" + UTF8Type.instance.compose(source) + "' ALLOW FILTERING;");
-        Integer balance = rs.one().getInt("system.sum(amount)");
+        UntypedResultSet rs;
+        Integer balance = 0;
 
-        rs = FormatHelper.executeQuery("SELECT sum(amount) FROM " + metadata.keyspace + "." + metadata.name + " WHERE source = '" + UTF8Type.instance.compose(source) + "' ALLOW FILTERING;");
+/*
+        //Calc source money only from Blockchain (Easy Mode)
+        rs = FormatHelper.executeQuery("SELECT sum(amount) FROM " + metadata.keyspace + "." + metadata.name + " WHERE destination = '" + source + "' ALLOW FILTERING;");
+        balance = rs.one().getInt("system.sum(amount)");
+
+        rs = FormatHelper.executeQuery("SELECT sum(amount) FROM " + metadata.keyspace + "." + metadata.name + " WHERE source = '" + source + "' ALLOW FILTERING;");
         balance -= rs.one().getInt("system.sum(amount)");
+*/
 
-        if(balance < money){
+
+        //Calculate money with HashTree
+        TreeNode blockchainTree = BlockchainHandler.getBlocktree(metadata);
+        System.out.println(blockchainTree.printTreeLeafs());
+        LinkedList<TreeNode> lp = blockchainTree.getLongestPath();
+        //Debug
+        //System.out.println("Number of deepest Paths: " + lp.size());
+        assert lp.size() >= 1 : "Something went wrong! BlockchainTree longest path had no result";
+
+        //Only use the first element for calculating
+        TreeNode deepestLeaf = lp.getFirst();
+        //No money if there is no tree
+        if (deepestLeaf.isRoot())
+        {
+            return true;
+        }
+
+        //Create a pointer through the tree
+        TreeNode treePointer = deepestLeaf;
+
+        ByteBuffer s;
+        ByteBuffer d;
+        do
+        {
+
+
+            rs = FormatHelper.executeQuery("SELECT amount, source, destination FROM " + metadata.keyspace + "." + metadata.name + " WHERE blockchainid = " + TimeUUIDType.instance.compose(treePointer.data).toString() + ";");
+            UntypedResultSet.Row row = rs.one();
+            row.printFormated();
+            s = row.getBytes("source");
+            if (s != null && s.equals(sourceBuffer))
+            {
+                balance -= row.getInt("amount");
+            }
+            d = row.getBytes("destination");
+            if (d != null && d.equals(sourceBuffer))
+            {
+                balance += row.getInt("amount");
+            }
+            treePointer = treePointer.parent;
+        } while (!treePointer.isRoot());
+
+
+        //Check money
+        if (balance < amount)
+        {
             //Throw Exception for debugging
-            throw new SpendTooMuchException(UTF8Type.instance.compose(source), money, balance);
+            throw new SpendTooMuchException(source, amount, balance);
             //return false;
         }
 
@@ -78,18 +143,38 @@ public class ConstraintValidator
 
     public void validateSignature(ByteBuffer dest, ByteBuffer sig, ByteBuffer time)
     {
-        if(source == null)
+        if (sourceBuffer == null)
         {
-            //signature useless
+            //signature no neccessary
             return;
         }
-        if(sig == null)
+        if (sig == null)
         {
-            throw new NoSignatureException(UTF8Type.instance.compose(source));
+            System.out.println("Source: " + source);
+            System.out.println("Destination: " + UTF8Type.instance.compose(dest));
+            System.out.println("Amount: " + amount);
+            System.out.println("Sig: " + FormatHelper.convertByteBufferToString(sig));
+            throw new NoSignatureException(source);
         }
-        if(!HashBlock.getDs().verifyData(UTF8Type.instance.compose(source), sig.array(), source, dest, amount, time)){
-            throw new SignatureValidationFailedException(UTF8Type.instance.compose(source), source);
+        if (!BlockchainHandler.getDs().verifyData(source, sig.array(), sourceBuffer, dest, amountBuffer, time))
+        {
+            throw new SignatureValidationFailedException(source, sourceBuffer);
         }
     }
 
+    public SmartContracts checkSmartContracts(ByteBuffer destBuffer)
+    {
+        if (!BlockchainHandler.getSmartContracts().isEmpty())
+        {
+            for (SmartContracts sc : BlockchainHandler.getSmartContracts())
+            {
+                //TODO Check more then one maybe
+                if (sc.checkContract(source, UTF8Type.instance.compose(destBuffer), amount) == true)
+                {
+                    return sc;
+                }
+            }
+        }
+        return null;
+    }
 }

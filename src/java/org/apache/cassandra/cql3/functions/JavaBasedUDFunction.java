@@ -478,13 +478,13 @@ public final class JavaBasedUDFunction extends UDFunction
 
     // Java source UDFs are a very simple compilation task, which allows us to let one class implement
     // all interfaces required by ECJ.
-    static final class EcjCompilationUnit implements ICompilationUnit, ICompilerRequestor, INameEnvironment
+    public static final class EcjCompilationUnit implements ICompilationUnit, ICompilerRequestor, INameEnvironment
     {
-        List<IProblem> problemList;
+        public List<IProblem> problemList;
         private final String className;
         private final char[] sourceCode;
 
-        EcjCompilationUnit(String sourceCode, String className)
+        public EcjCompilationUnit(String sourceCode, String className)
         {
             this.className = className;
             this.sourceCode = sourceCode.toCharArray();

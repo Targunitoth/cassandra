@@ -57,7 +57,10 @@ public enum ExceptionCode
     SPEND_TO_MUCH         (0x3200),
     VALIDATION_FAILED     (0x3300),
     NO_SIGNATURE          (0x3400),
+    CONTRACT_BROKEN       (0x3400),
     NEGAIVE_AMOUNT        (0x3100);
+
+
 
     public final int value;
     private static final Map<Integer, ExceptionCode> valueToCode = new HashMap<>(ExceptionCode.values().length);

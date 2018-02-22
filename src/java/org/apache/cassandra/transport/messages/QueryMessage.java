@@ -17,29 +17,20 @@
  */
 package org.apache.cassandra.transport.messages;
 
-import java.nio.ByteBuffer;
-import java.sql.Timestamp;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
 
 import io.netty.buffer.ByteBuf;
-import javafx.util.converter.DateTimeStringConverter;
-import javafx.util.converter.TimeStringConverter;
-import org.apache.cassandra.blockchain.HashBlock;
-import org.apache.cassandra.blockchain.VerifyHashIterative;
-import org.apache.cassandra.blockchain.VerifyHashRecursive;
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.cql3.QueryOptions;
 import org.apache.cassandra.cql3.QueryProcessor;
-import org.apache.cassandra.db.marshal.TimeType;
-import org.apache.cassandra.db.marshal.TimestampType;
 import org.apache.cassandra.exceptions.RequestExecutionException;
 import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.transport.CBUtil;
-import org.apache.cassandra.transport.Event;
 import org.apache.cassandra.transport.Message;
 import org.apache.cassandra.transport.ProtocolException;
 import org.apache.cassandra.transport.ProtocolVersion;
@@ -105,7 +96,7 @@ public class QueryMessage extends Message.Request
                 throw new ProtocolException("The page size cannot be 0");
 
             //Hack here for cqlsh insert command
-            if (query.toUpperCase().contains("INSERT") && query.contains(HashBlock.getBlockchainIDString()))
+            if (query.toUpperCase().contains("INSERT") && query.contains(BlockchainHandler.getBlockchainIDString()))
             {
                 //TODO Hack Here for sign()!!!!! as value
                 if(query.toUpperCase().contains("SIGN(")){
@@ -166,19 +157,19 @@ public class QueryMessage extends Message.Request
     {
         String TableString = "";
         //Skip Nr. 1 (key) and Nr. 2 (signature)
-        for (int i = 2; i < HashBlock.tables.length; i++)
+        for (int i = 2; i < BlockchainHandler.tables.length; i++)
         {
-            TableString += ", " + HashBlock.tables[i];
+            TableString += ", " + BlockchainHandler.tables[i];
         }
 
         String nullString = "";
-        for (int i = 2; i < HashBlock.tables.length; i++)
+        for (int i = 2; i < BlockchainHandler.tables.length; i++)
         {
             nullString += ", null";
         }
 
         //TODO Optional generate Hashblock here.
-        //TODO change HashBlock Timestamp to long
+        //TODO change BlockchainHandler Timestamp to long
         //TimeType.instance.decompose(queryStartNanoTime )
         String[] querryArray = query.split("\\)");
         if (querryArray.length == 3)
@@ -189,14 +180,20 @@ public class QueryMessage extends Message.Request
         { //Without Semicolon
             query = querryArray[0] + TableString + ")" + querryArray[1] + nullString +")";
         }
-        else if (querryArray.length == 4)
-        { //Case with now
-            //querryArray[1] => now(
-            query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + nullString +")" + querryArray[3];
+        else if (querryArray.length >= 4)
+        {
+            query = querryArray[0] + TableString + ")";
+            for(int i = 1; i < querryArray.length -2; i++)
+            {
+                query += querryArray[i] + ")";
+            }
+            query += querryArray[querryArray.length -2] + nullString +")" + querryArray[querryArray.length -1];
+            //query = querryArray[0] + TableString + ")" + querryArray[1] + ")" + querryArray[2] + ")" + querryArray[3] + ")" + querryArray[4]+ ")" + querryArray[5] + nullString +")" + querryArray[6];
         }
+
         else
         {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException("querryArray.length is: " + querryArray.length);
         }
     }
 

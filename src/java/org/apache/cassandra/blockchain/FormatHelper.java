@@ -153,7 +153,7 @@ public class FormatHelper
     public static UntypedResultSet executeQuery(String query)
     {
         UntypedResultSet rs;
-        if (HashBlock.getDebug())
+        if (BlockchainHandler.getDebug())
         {
             rs = QueryProcessor.executeInternal(query);
         }

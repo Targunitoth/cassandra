@@ -17,39 +17,19 @@
  */
 package org.apache.cassandra.cql3;
 
-import java.net.SocketAddress;
-import java.util.UUID;
-
 import org.junit.Test;
 
 import com.datastax.driver.core.utils.UUIDs;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.AbstractChannel;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelProgressivePromise;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.local.LocalServerChannel;
-import io.netty.util.Attribute;
-import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.EventExecutor;
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.blockchain.FormatHelper;
-import org.apache.cassandra.blockchain.HashBlock;
-import org.apache.cassandra.db.ConsistencyLevel;
-import org.apache.cassandra.service.ClientState;
-import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.transport.Connection;
 import org.apache.cassandra.transport.Message;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.transport.Server;
 import org.apache.cassandra.transport.ServerConnection;
 import org.apache.cassandra.transport.messages.QueryMessage;
-
-import static org.apache.cassandra.db.ConsistencyLevel.*;
-
+import org.apache.cassandra.blockchain.RuntimeCompiler;
 
 public class SimpleQueryTest extends CQLTester
 {
@@ -104,18 +84,23 @@ public class SimpleQueryTest extends CQLTester
     @Test
     public void BlockchainTest() throws Throwable
     {
-        HashBlock.setDebug(true);
+        BlockchainHandler.setDebug(true);
         // Create a blockchain table
-        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
+        createTable("CREATE TABLE %s (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int, contract text)");
 
         // Transaction
         execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100);
-        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Bob", 100);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Bob", 300);
 
         //execute("INSERT INTO %s (blockchainid, source, destination, amount) values (?, ?, ?, ?)", UUIDs.timeBased(), "Alice", "Bob", 100);
-        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign(Alice))", UUIDs.timeBased(), "Alice", "Carl", 100);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, contract, signature) values (?, ?, ?, ?, ?, sign(Alice))", UUIDs.timeBased(), "Alice", "Carl", 100, "CONTRACT IF Bob PAYS 50 SEND 15 TO Alice");
 
-        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign('Bob'))", UUIDs.timeBased(), "Bob", "Alice", 50);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign('Bob'))", UUIDs.timeBased(), "Bob", "Alice", 60);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign('Bob'))", UUIDs.timeBased(), "Bob", "Alice", 70);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Alice", 100);
+        execute("INSERT INTO %s (blockchainid, destination, amount) values (?, ?, ?)", UUIDs.timeBased(), "Bob", 300);
+        execute("INSERT INTO %s (blockchainid, source, destination, amount, signature) values (?, ?, ?, ?, sign('Bob'))", UUIDs.timeBased(), "Bob", "Alice", 60);
+
 
         // Print all data
         System.out.println("SELCET *:");
@@ -123,11 +108,11 @@ public class SimpleQueryTest extends CQLTester
         for (UntypedResultSet.Row row : urs)
         {
             System.out.println("New Row:");
-            row.printFormatet();
+            row.printFormated();
         }
 
         // Validate calls
-        execute("VALIDATE TABLE %s");
+        //execute("VALIDATE TABLE %s");
 
         /*double balance;
         System.out.println("SELCET Alice:");
@@ -142,11 +127,11 @@ public class SimpleQueryTest extends CQLTester
     @Test
     public void RealBlockchainQueryTest() throws Throwable{
 
-        HashBlock.setDebug(true);
+        BlockchainHandler.setDebug(true);
         // Create a blockchain table
         createTable("CREATE TABLE cql_test_keyspace.mytable (blockchainid timeuuid PRIMARY KEY,  source text, destination text, amount int)");
 
-        //TODO: Goal
+        //Goal
         Connection con = new ServerConnection(new LocalServerChannel(), ProtocolVersion.V4, new Server.ConnectionTracker());
         Message.Dispatcher msg = new Message.Dispatcher();
         msg.setDebug();
@@ -161,16 +146,42 @@ public class SimpleQueryTest extends CQLTester
         msgrq2.attach(con);
         msg.channelRead0(null, msgrq2);
 
+        //TODO Debug UFA
+        /*Message.Request msgrq3 = new QueryMessage("CREATE OR REPLACE FUNCTION cql_test_keyspace.doubleAmount(amount int) RETURNS NULL ON NULL INPUT RETURNS int LANGUAGE java AS 'return amount * 2;';", op);
+        msgrq3.attach(con);
+        msg.channelRead0(null, msgrq3);
 
+        Message.Request msgrq4 = new QueryMessage("SELECT cql_test_keyspace.doubleAmount(amount) FROM cql_test_keyspace.mytable;", op);
+        msgrq4.attach(con);
+        msg.channelRead0(null, msgrq4);*/
+    }
+
+    @Test
+    public void SmartContractTest() throws Throwable
+    {
+        //Befor Starting
+        BlockchainHandler.setDebug(true);
+        createTable("CREATE TABLE cql_test_keyspace.mytable  (blockchainid timeuuid PRIMARY KEY, source text, destination text, amount int, contract text);");
+
+        //Smart Contract
+        //TODO
+        //String
+        String query = "System.out.println( \"Hallo!\");";
+        RuntimeCompiler.prepaireAndExecute(query, "Bob", "Alice", 10);
+
+
+        query = "FormatHelper.executeQuery(\"INSERT INTO cql_test_keyspace.mytable (blockchainid, destination, amount) VALUES (\" + UUIDs.timeBased() + \", 'Bob', 15);\");";
+        RuntimeCompiler.prepaireAndExecute(query, "Bob", "Alice", 10);
+
+
+        // Print all data
         System.out.println("SELCET *:");
         UntypedResultSet urs = execute("SELECT * FROM cql_test_keyspace.mytable");
         for (UntypedResultSet.Row row : urs)
         {
             System.out.println("New Row:");
-            row.printFormatet();
+            row.printFormated();
         }
-
-        //qm.execute();
     }
 
 

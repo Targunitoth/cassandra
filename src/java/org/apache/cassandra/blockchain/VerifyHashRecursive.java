@@ -39,14 +39,14 @@ public class VerifyHashRecursive extends VerifyHash
 
         //Recursive Call
         System.out.println("Start validating table " + tableName + " recursively");
-        String calculatedHash = validateRecursive(HashBlock.getBlockChainHead());
+        String calculatedHash = validateRecursive(BlockchainHandler.getBlockChainHead());
         //Test Value
-        return calculatedHash.equals(HashBlock.getPredecessorHash());
+        return calculatedHash.equals(BlockchainHandler.getPredecessorHash());
     }
 
     private static String validateRecursive(ByteBuffer key)
     {
-        if (key.equals(HashBlock.getNullBlock()))
+        if (key.equals(BlockchainHandler.getNullBlock()))
         {
             return "";
         }
@@ -58,15 +58,15 @@ public class VerifyHashRecursive extends VerifyHash
         String calculatedHash;
         String thisHash = "";
 
-        UntypedResultSet rs = QueryProcessor.executeInternal("SELECT * FROM " + tableName + " WHERE " + HashBlock.getBlockchainIDString() + "=?", key);
-        if(!rs.isEmpty())
+        UntypedResultSet rs = QueryProcessor.executeInternal("SELECT * FROM " + tableName + " WHERE " + BlockchainHandler.getBlockchainIDString() + "=?", key);
+        if (!rs.isEmpty())
         {
             UntypedResultSet.Row row = rs.one();
             for (ColumnMetadata cm : metadata.columns())
             {
                 cmname = cm.name.toString();
 
-                if (cmname.equals(HashBlock.getBlockchainIDString()))
+                if (cmname.equals(BlockchainHandler.getBlockchainIDString()))
                 {
                     //Do nothing for the key, it is already set
                 }
@@ -76,6 +76,12 @@ public class VerifyHashRecursive extends VerifyHash
                 }
                 else if (cmname.equals("hash"))
                 {
+                    //for debugging
+                    System.out.println("Selected Row:");
+                    row.printFormated();
+
+                    assert row.has("hash") : "Row is not empty and does not contain hast. Maybe table is broken... ";
+
                     //Save the current hash to return it at the end
                     thisHash = row.getString("hash");
                 }
@@ -84,7 +90,7 @@ public class VerifyHashRecursive extends VerifyHash
                     valueColumns[counter++] = row.getBytes(cmname);
                 }
             }
-            calculatedHash = HashBlock.calculateHash(key, removeEmptyCells(valueColumns), timestamp, validateRecursive(row.getBytes("predecessor")));
+            calculatedHash = BlockchainHandler.calculateHash(key, removeEmptyCells(valueColumns), timestamp, validateRecursive(row.getBytes("predecessor")));
             if (!calculatedHash.equals(thisHash))
             {
                 throw new BlockchainBrokenException(key, calculatedHash);

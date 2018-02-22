@@ -282,6 +282,12 @@ public class SelectStatement implements CQLStatement
         try (PartitionIterator data = query.execute(options.getConsistency(), state.getClientState(), queryStartNanoTime))
         {
             return processResults(data, options, selectors, nowInSec, userLimit);
+        }catch(Exception ex){
+            ex.printStackTrace();
+            throw ex;
+        }catch (Throwable t){
+            t.printStackTrace();
+            throw t;
         }
     }
 

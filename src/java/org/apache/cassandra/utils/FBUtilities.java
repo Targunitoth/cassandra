@@ -367,8 +367,11 @@ public class FBUtilities
 
     public static <T> T waitOnFuture(Future<T> future)
     {
+        //TODO REMOVE TESTING
+        //return null;
         try
         {
+
             return future.get();
         }
         catch (ExecutionException ee)

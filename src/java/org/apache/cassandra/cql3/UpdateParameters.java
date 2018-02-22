@@ -20,8 +20,6 @@ package org.apache.cassandra.cql3;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
-import org.apache.cassandra.blockchain.FormatHelper;
-import org.apache.cassandra.blockchain.HashBlock;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.db.*;

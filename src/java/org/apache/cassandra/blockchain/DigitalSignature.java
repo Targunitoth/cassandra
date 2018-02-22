@@ -75,8 +75,10 @@ public class DigitalSignature
             PrivateKey priv = pair.getPrivate();
             PublicKey pub = pair.getPublic();
 
+            //Try to save new keys to the database, does nothing if there are already keys
             saveKey(name.toLowerCase(), pub, priv);
 
+            //Load Keys from database
             loadKeysFromDatabase(name.toLowerCase());
         }
         catch (Exception e)
@@ -116,7 +118,8 @@ public class DigitalSignature
     private PublicKey loadPubKeyFromDatabase(String name)
     {
         UntypedResultSet urs = FormatHelper.executeQuery("SELECT p,q,g,y FROM blockchain.keydatabase WHERE user = '" + name.toLowerCase() + "'");
-        if(urs.isEmpty()){
+        if (urs.isEmpty())
+        {
             //Key not loadable, generate it
             genKey(name.toLowerCase());
             return getPublicKey(name.toLowerCase());
@@ -162,25 +165,25 @@ public class DigitalSignature
 
     private boolean checkFalseName(String name)
     {
-        if(name == null || name.equals("")){
+        if (name == null || name.equals(""))
+        {
             return true;
         }
-        if(!lokalKeyStore.containsKey(name.toLowerCase())){
+        if (!lokalKeyStore.containsKey(name.toLowerCase()))
+        {
             loadKeysFromDatabase(name.toLowerCase());
         }
         return false;
     }
 
-    public ByteBuffer createSignature(ByteBuffer source, ByteBuffer dest, ByteBuffer amount, ByteBuffer timestamp){
-        if(createSignature == false)
+    public ByteBuffer createSignature(ByteBuffer source, ByteBuffer dest, ByteBuffer amount, ByteBuffer timestamp)
+    {
+        if (createSignature == false || source == null)
             return null;
 
         //toggle to false, only create signature if wished
         createSignature = false;
 
-        if(source == null){
-            return null;
-        }
         return ByteBuffer.wrap(signData(createSignatureName, source, dest, amount, timestamp));
     }
 
@@ -271,8 +274,29 @@ public class DigitalSignature
 
     public void triggerCreateSignature(String name)
     {
-        createSignature = true;
-        createSignatureName = name;
+        if (!name.toLowerCase().equals("null"))
+        {
+            createSignature = true;
+            createSignatureName = name;
+        }
+        else
+        {
+            createSignature = false;
+        }
+    }
+
+    public String backupCreateSignature()
+    {
+        if (createSignature)
+        {
+            //Set createSignature to false to ensure, the next will be handlet correctly
+            createSignature = false;
+            return createSignatureName;
+        }
+        else
+        {
+            return "null";
+        }
     }
 
     public static void vaidateTable(String tableName)

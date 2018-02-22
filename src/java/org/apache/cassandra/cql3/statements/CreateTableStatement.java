@@ -25,7 +25,7 @@ import com.google.common.collect.Multiset;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.auth.*;
-import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.db.*;
@@ -397,11 +397,11 @@ public class CreateTableStatement extends SchemaAlteringStatement
         public void addDefinition(ColumnIdentifier def, CQL3Type.Raw type, boolean isStatic)
         {
             addDef(def, type, isStatic);
-            if(def != null && def.toString().toLowerCase().contains(HashBlock.getBlockchainIDString())){
+            if(def != null && def.toString().toLowerCase().contains(BlockchainHandler.getBlockchainIDString())){
                 System.out.println("Column name blockchainid was detected");
-                HashBlock.createHeaderTable();
+                BlockchainHandler.createBlockchainTables();
                 addBlockchainDefinition(false);
-                HashBlock.identifier[0] = def;
+                BlockchainHandler.identifier[0] = def;
             }
         }
 
@@ -420,16 +420,16 @@ public class CreateTableStatement extends SchemaAlteringStatement
         public void addBlockchainDefinition(boolean isStatic)
         {
             //System.out.println("addBlockchainDefinition was called");
-            assert(HashBlock.tables.length == HashBlock.types.length);
-            //TODO Add => assert HashBlock.identifier == null : "HashBlock identifier is already set. Multiple Tables with blockchain are currently not supported";
-            HashBlock.identifier = new ColumnIdentifier[HashBlock.tables.length];
+            assert(BlockchainHandler.tables.length == BlockchainHandler.types.length);
+            //TODO Add => assert BlockchainHandler.identifier == null : "BlockchainHandler identifier is already set. Multiple Tables with blockchain are currently not supported";
+            BlockchainHandler.identifier = new ColumnIdentifier[BlockchainHandler.tables.length];
 
             //Starte bei 1, da wir blockchainid schon angelegt haben
-            for(int i = 1; i < HashBlock.tables.length; i++)
+            for(int i = 1; i < BlockchainHandler.tables.length; i++)
             {
-                HashBlock.identifier[i] = new ColumnIdentifier(HashBlock.tables[i], false, true);
-                CQL3Type.Raw type = CQL3Type.Raw.from(HashBlock.types[i]);
-                addDef(HashBlock.identifier[i], type, isStatic);
+                BlockchainHandler.identifier[i] = new ColumnIdentifier(BlockchainHandler.tables[i], false, true);
+                CQL3Type.Raw type = CQL3Type.Raw.from(BlockchainHandler.types[i]);
+                addDef(BlockchainHandler.identifier[i], type, isStatic);
             }
         }
 

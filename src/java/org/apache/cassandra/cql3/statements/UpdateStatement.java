@@ -18,18 +18,17 @@
 package org.apache.cassandra.cql3.statements;
 
 import java.nio.ByteBuffer;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.lang.NotImplementedException;
-
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.blockchain.ConstraintValidator;
 import org.apache.cassandra.blockchain.DigitalSignature;
 import org.apache.cassandra.blockchain.FormatHelper;
-import org.apache.cassandra.blockchain.HashBlock;
+import org.apache.cassandra.blockchain.RuntimeCompiler;
+import org.apache.cassandra.blockchain.SmartContracts;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.cql3.conditions.ColumnCondition;
 import org.apache.cassandra.cql3.conditions.Conditions;
@@ -37,6 +36,7 @@ import org.apache.cassandra.cql3.restrictions.StatementRestrictions;
 import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.CompactTables;
 import org.apache.cassandra.db.Slice;
+import org.apache.cassandra.db.marshal.Int32Type;
 import org.apache.cassandra.db.marshal.TimeType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
@@ -55,7 +55,7 @@ import static org.apache.cassandra.cql3.statements.RequestValidations.checkTrue;
 public class UpdateStatement extends ModificationStatement
 {
 
-    //Toggle expensive validations
+    //TODO Toggle expensive validations
     boolean useValidator = true;
 
     private static final Constants.Value EMPTY = new Constants.Value(ByteBufferUtil.EMPTY_BYTE_BUFFER);
@@ -79,6 +79,14 @@ public class UpdateStatement extends ModificationStatement
     @Override
     public void addUpdateForKey(PartitionUpdate update, Clustering clustering, UpdateParameters params)
     {
+        //Execute sc in the end
+        SmartContracts sc = null;
+
+        ByteBuffer source = null;
+        ByteBuffer dest = null;
+        ByteBuffer amount = null;
+
+
         //TODO Maybe return if not insert.
         //System.out.println("Type of insert is: " + type.toString());
 
@@ -89,7 +97,7 @@ public class UpdateStatement extends ModificationStatement
         //Check if blockchain is part of the key
         for (ColumnMetadata key : metadata.partitionKeyColumns())
         {
-            if (key.name.toString().contains(HashBlock.getBlockchainIDString()))
+            if (key.name.toString().contains(BlockchainHandler.getBlockchainIDString()))
             {
                 hasBlockchainID = true;
             }
@@ -98,7 +106,7 @@ public class UpdateStatement extends ModificationStatement
         //Check if blockchain is part of the clustering Key
         for (ColumnMetadata key : metadata.clusteringColumns())
         {
-            if (key.name.toString().contains(HashBlock.getBlockchainIDString()))
+            if (key.name.toString().contains(BlockchainHandler.getBlockchainIDString()))
             {
                 hasBlockchainID = true;
             }
@@ -135,13 +143,10 @@ public class UpdateStatement extends ModificationStatement
 
                 ByteBuffer key = update.partitionKey().getKey();
                 ByteBuffer timestampBuffer = TimeType.instance.decompose(params.getTimestamp());
-                ByteBuffer predecessorBuffer = HashBlock.getBlockChainHead();
 
-                //TODO Check the values
-                ByteBuffer source = null;
-                ByteBuffer dest = null;
-                ByteBuffer amount = null;
 
+
+                ByteBuffer contract = null;
 
 
                 ByteBuffer[] cellValues;
@@ -154,11 +159,15 @@ public class UpdateStatement extends ModificationStatement
                     ArrayList<ByteBuffer> list = new ArrayList<>();
                     for (Operation o : updates)
                     {
+                        if (!(o.getTerm() instanceof Constants.Value))
+                        {
+                            continue;
+                        }
 
                         ByteBuffer value = ((Constants.Value) o.getTerm()).bytes;
 
 
-                        switch (o.column.name.toString())
+                        switch (o.column.name.toString().toLowerCase())
                         {
                             case "amount":
                                 amount = value;
@@ -169,9 +178,9 @@ public class UpdateStatement extends ModificationStatement
                             case "destination":
                                 dest = value;
                                 break;
-                            /*case "sigantur":
-                                sig = value;
-                                break;*/
+                            case "contract":
+                                contract = value;
+                                break;
                             default:
                                 break;
                         }
@@ -195,11 +204,11 @@ public class UpdateStatement extends ModificationStatement
                     {
                         ByteBuffer value = cellValues[o.getTerm().getBindIndex()];
 
-                        switch (o.column.name.toString())
+                        switch (o.column.name.toString().toLowerCase())
                         {
-                            /*case "sigantur":
-                                sig = value;
-                                break;*/
+                            case "contract":
+                                contract = value;
+                                break;
                             case "amount":
                                 amount = value;
                                 break;
@@ -224,15 +233,64 @@ public class UpdateStatement extends ModificationStatement
                     }
                 }
 
+                //Execute my Code with the new parameter
+                if(useValidator){
+                    String s = "";
+                    String d = "";
+                    int a = 0;
+                    if(source != null){
+                        s = UTF8Type.instance.compose(source);
+                    }
+                    if(dest != null){
+                        d = UTF8Type.instance.compose(dest);
+                    }
+                    if(amount != null){
+                        a = Int32Type.instance.compose(amount);
+                    }
+
+                    String backup = BlockchainHandler.getDs().backupCreateSignature();
+                    for(String r : BlockchainHandler.getExecutableContracts()){
+                        RuntimeCompiler.prepaireAndExecute(r, s , d, a);
+                    }
+                    BlockchainHandler.getDs().triggerCreateSignature(backup);
+                }
+
+
+
+                ByteBuffer predecessorBuffer = BlockchainHandler.getBlockChainHead();
                 //Create signature if sing(Alice) was used
-                ByteBuffer sig = HashBlock.getDs().createSignature(source, dest, amount, timestampBuffer);
+                ByteBuffer sig = BlockchainHandler.getDs().createSignature(source, dest, amount, timestampBuffer);
+
 
                 //Validat the staff
                 if (useValidator)
                 {
-                    ConstraintValidator cv = new ConstraintValidator(amount, source, metadata);
+                    ConstraintValidator cv = new ConstraintValidator(key, amount, source, metadata);
                     cv.validateMoney();
                     cv.validateSignature(dest, sig, timestampBuffer);
+
+                    //TODO Execute SmartContracts
+                    System.out.println( "DEBUG: Start checking SmartContracts");
+                    sc = cv.checkSmartContracts(dest);
+                    if(sc == null){
+                        System.out.println( "DEBUG: No SmartContract to execute found");
+                    }
+                    else {
+                        System.out.println("DEBUG: " + sc.toString() + " -> will be executed later");
+                    }
+                    if(contract != null)
+                    {
+                        String contractString = UTF8Type.instance.compose(contract);
+                        if(contractString.toUpperCase().startsWith("CONTRACT"))
+                        {
+                            BlockchainHandler.addSmartContracts(new SmartContracts(contractString));
+                        }
+                        else
+                        {
+                            BlockchainHandler.addExecutableContractStrings(contractString);
+                        }
+
+                    }
                 }
 
                 //Maybe this is wrong, but else we miss clustering columns for calculation
@@ -245,7 +303,7 @@ public class UpdateStatement extends ModificationStatement
                 cellValues = FormatHelper.addElement(cellValues, predecessorBuffer);
                 cellValues = FormatHelper.addElement(cellValues, sig);
 
-                ByteBuffer hashBuffer = HashBlock.generateAndSetHash(key, cellValues, timestampBuffer);
+                ByteBuffer hashBuffer = BlockchainHandler.generateAndSetHash(key, cellValues, timestampBuffer);
 
                 //Get size
                 int index = updates.size();
@@ -255,8 +313,16 @@ public class UpdateStatement extends ModificationStatement
                 updates.set(index - 2, new Constants.Setter(updates.get(index - 2).column, new Constants.Value(predecessorBuffer)));
                 updates.set(index - 3, new Constants.Setter(updates.get(index - 3).column, new Constants.Value(timestampBuffer)));
                 //Do nothing if sig is already null
-                if(sig != null) {
+                if (sig != null)
+                {
                     updates.set(index - 4, new Constants.Setter(updates.get(index - 4).column, new Constants.Value(sig)));
+                }
+
+                //The HashTree needs only be updated if we want to validate each entry
+                if (useValidator)
+                {
+                    //Update HashTree
+                    BlockchainHandler.getBlocktree(metadata).addChildForParent(key, predecessorBuffer);
                 }
             }
 
@@ -278,6 +344,12 @@ public class UpdateStatement extends ModificationStatement
                 op.execute(update.partitionKey(), params);
             }
             update.add(params.buildRow());
+        }
+
+
+        if (useValidator && sc != null){
+            System.out.println("DEBUG: " + sc.toString() + " is now executed");
+            sc.executeContract(metadata);
         }
     }
 

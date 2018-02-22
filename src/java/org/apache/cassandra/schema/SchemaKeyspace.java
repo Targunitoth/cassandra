@@ -136,8 +136,7 @@ public final class SchemaKeyspace
               + "cdc boolean,"
               + "PRIMARY KEY ((keyspace_name), table_name))");
 
-    private static final TableMetadata Columns =
-        parse(COLUMNS,
+    private static final TableMetadata Columns = parse(COLUMNS,
               "column definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"

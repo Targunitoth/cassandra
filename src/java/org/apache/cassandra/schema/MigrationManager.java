@@ -26,6 +26,8 @@ import java.lang.management.RuntimeMXBean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
@@ -448,6 +450,7 @@ public class MigrationManager
      */
     static void passiveAnnounce(UUID version)
     {
+        if(!BlockchainHandler.getDebug())
         Gossiper.instance.addLocalApplicationState(ApplicationState.SCHEMA, StorageService.instance.valueFactory.schema(version));
         logger.debug("Gossiping my schema version {}", version);
     }

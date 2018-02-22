@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.batchlog.Batch;
 import org.apache.cassandra.batchlog.BatchlogManager;
+import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.schema.TableMetadata;
@@ -2022,6 +2023,10 @@ public class StorageProxy implements StorageProxyMBean
         {
             if (!ranges.hasNext())
                 return endOfData();
+
+            if(BlockchainHandler.getDebug()){
+                return endOfData();
+            }
 
             AbstractBounds<PartitionPosition> range = ranges.next();
             List<InetAddress> liveEndpoints = getLiveSortedEndpoints(keyspace, range.right);

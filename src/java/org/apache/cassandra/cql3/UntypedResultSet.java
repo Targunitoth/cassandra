@@ -383,7 +383,7 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
             return data.toString();
         }
 
-        public void printFormatet()
+        public void printFormated()
         {
             ByteBuffer tmp;
             for (Map.Entry<String, ByteBuffer> entry : data.entrySet())

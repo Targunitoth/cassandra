@@ -19,33 +19,23 @@
 package org.apache.cassandra.blockchain;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.UUID;
 
-import com.datastax.driver.core.utils.UUIDs;
-import com.sun.jersey.api.NotFoundException;
-import io.netty.channel.ChannelOutboundBuffer;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.QueryProcessor;
-import org.apache.cassandra.cql3.ResultSet;
 import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.ConsistencyLevel;
-import org.apache.cassandra.db.marshal.TimeType;
-import org.apache.cassandra.db.marshal.TimestampType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.marshal.UUIDType;
-import org.apache.cassandra.exceptions.AlreadyExistsException;
-import org.apache.cassandra.index.sasi.disk.OnDiskIndex;
-import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.TableMetadata;
-import org.apache.cassandra.transport.Message;
 
-public class HashBlock
+public class BlockchainHandler
 {
     public final static String tables[] = { "blockchainid", "signature", "timestamp", "predecessor", "hash" };
-    public final static CQL3Type.Native types[] = { CQL3Type.Native.TIMEUUID,  CQL3Type.Native.BLOB, CQL3Type.Native.TIMESTAMP, CQL3Type.Native.TIMEUUID, CQL3Type.Native.TEXT };
+    public final static CQL3Type.Native types[] = { CQL3Type.Native.TIMEUUID, CQL3Type.Native.BLOB, CQL3Type.Native.TIMESTAMP, CQL3Type.Native.TIMEUUID, CQL3Type.Native.TEXT };
     public static ColumnIdentifier identifier[];
 
     //Set nullBlock to ones for debugging
@@ -61,6 +51,10 @@ public class HashBlock
     private static boolean init = false;
     private static boolean debug = false;
     private static DigitalSignature ds;
+    private static TreeNode blocktree = null;
+
+    private static ArrayList<SmartContracts> smartContracts = null;
+    private static ArrayList<String> executeableContracts = null;
 
 
     public static ByteBuffer getBlockChainHead()
@@ -84,7 +78,32 @@ public class HashBlock
     {
         init = true;
         restoreData();
+        initDS();
+        initSC();
     }
+
+    private static void initSC()
+    {
+        if (smartContracts == null)
+        {
+            smartContracts = new ArrayList<>();
+        }
+        if (executeableContracts == null)
+        {
+            executeableContracts = new ArrayList<>();
+        }
+
+        //TODO Restore all SmartContracts
+    }
+
+    public static void initDS()
+    {
+        if (ds == null)
+        {
+            ds = new DigitalSignature();
+        }
+    }
+
 
     private static void restoreData()
     {
@@ -99,6 +118,24 @@ public class HashBlock
         }
         predecessorHash = rs.one().getString("hash");
         blockChainHead = rs.one().getBytes("predecessor");
+    }
+
+    public static ArrayList<SmartContracts> getSmartContracts()
+    {
+        if (!init)
+        {
+            init();
+        }
+        return smartContracts;
+    }
+
+    public static void addSmartContracts(SmartContracts sc)
+    {
+        if (!init)
+        {
+            init();
+        }
+        smartContracts.add(sc);
     }
 
     private static void setBlockChainHead(ByteBuffer newHead)
@@ -135,7 +172,7 @@ public class HashBlock
 
         //Set this key and hash as new predecessor
         predecessorHash = sha256hex;
-        HashBlock.setBlockChainHead(key);
+        BlockchainHandler.setBlockChainHead(key);
 
         //For Debuging
         System.out.println("Calculatet Hash: " + sha256hex);
@@ -224,7 +261,7 @@ public class HashBlock
         return predecessorHash;
     }
 
-    public static void createHeaderTable()
+    public static void createBlockchainTables()
     {
         blockChainHead = null;
         predecessorHash = "";
@@ -236,11 +273,14 @@ public class HashBlock
         saveNewHead();
 
         ds = new DigitalSignature();
+        blocktree = new TreeNode(nullBlock);
+        smartContracts = new ArrayList<>();
+        executeableContracts = new ArrayList<>();
     }
 
     public static void setDebug(boolean debug)
     {
-        HashBlock.debug = debug;
+        BlockchainHandler.debug = debug;
     }
 
     public static boolean getDebug()
@@ -253,10 +293,32 @@ public class HashBlock
         return ds;
     }
 
-    public static void initDS()
+
+    public static TreeNode getBlocktree(TableMetadata metadata)
     {
-        if(ds == null){
-            ds = new DigitalSignature();
+        if (blocktree == null)
+        {
+            TreeNode.updatMetadata(metadata);
+            blocktree = TreeNode.buildTree();
         }
+        return blocktree;
+    }
+
+    public static void addExecutableContractStrings(String contract)
+    {
+        if (!init)
+        {
+            init();
+        }
+        executeableContracts.add(contract);
+    }
+
+    public static ArrayList<String> getExecutableContracts()
+    {
+        if (!init)
+        {
+            init();
+        }
+        return executeableContracts;
     }
 }

@@ -23,14 +23,10 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
-import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multiset;
 
 import org.apache.cassandra.cql3.ColumnSpecification;
-import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.exceptions.BlockchainBrokenException;
@@ -54,7 +50,7 @@ public class VerifyHashIterative extends VerifyHash
 
         //Validate, start with head
         String calculatedHash = validateList();
-        return calculatedHash.equals(HashBlock.getPredecessorHash());
+        return calculatedHash.equals(BlockchainHandler.getPredecessorHash());
     }
 
     private static void generateTable()
@@ -66,7 +62,7 @@ public class VerifyHashIterative extends VerifyHash
         for (UntypedResultSet.Row row : rs)
         {
             System.out.println("------------------------------------------------");
-            row.printFormatet();
+            row.printFormated();
         }
 
 
@@ -120,21 +116,23 @@ public class VerifyHashIterative extends VerifyHash
     {
         List<ByteBuffer> order = new LinkedList<>();
         //Set first key to head of blockchain
-        ByteBuffer key = HashBlock.getBlockChainHead();
-        assert key != null: "Key can't be empty";
+        ByteBuffer key = BlockchainHandler.getBlockChainHead();
+        assert key != null : "Key can't be empty";
         //Sort List
         do
         {
             System.out.println("Key: " + FormatHelper.convertByteBufferToString(key));
             order.add(0, key);
-            if(table.get(key) == null){
+            if (table.get(key) == null)
+            {
                 break;
-            }else
+            }
+            else
             {
                 System.out.println("Key in List: " + FormatHelper.convertByteBufferToString(table.get(key).get("predecessor")));
                 key = table.get(key).get("predecessor");
             }
-        } while (key != null && !key.equals(HashBlock.getNullBlock()));
+        } while (key != null && !key.equals(BlockchainHandler.getNullBlock()));
 
         System.out.println("Ordered");
         for (ByteBuffer orderedkey : order)
@@ -154,14 +152,14 @@ public class VerifyHashIterative extends VerifyHash
 
         for (ByteBuffer orderedkey : order)
         {
-            if(orderedkey == null) continue;
-            if(table.get(orderedkey) == null) continue;
+            if (orderedkey == null) continue;
+            if (table.get(orderedkey) == null) continue;
             cvcounter = 0;
 
             for (ColumnMetadata cm : metadata.columns())
             {
                 String cmname = cm.name.toString();
-                if (cmname.equals(HashBlock.getBlockchainIDString()))
+                if (cmname.equals(BlockchainHandler.getBlockchainIDString()))
                 {
                     //Do nothing for the key Value
                 }
@@ -171,11 +169,12 @@ public class VerifyHashIterative extends VerifyHash
                 }
                 else if (cmname.equals("hash"))
                 {
-                    if(table.get(orderedkey).get(cmname) != null)
+                    if (table.get(orderedkey).get(cmname) != null)
                     {
                         lastHash = UTF8Type.instance.compose(table.get(orderedkey).get(cmname));
                     }
-                    else{
+                    else
+                    {
                         lastHash = "";
                     }
                 }
@@ -184,7 +183,7 @@ public class VerifyHashIterative extends VerifyHash
                     valueColumns[cvcounter++] = table.get(orderedkey).get(cmname);
                 }
             }
-            calculatedHash = HashBlock.calculateHash(orderedkey, removeEmptyCells(valueColumns), timestamp, hash);
+            calculatedHash = BlockchainHandler.calculateHash(orderedkey, removeEmptyCells(valueColumns), timestamp, hash);
             //System.out.println(calculatedHash);
             if (!calculatedHash.equals(lastHash))
             {
