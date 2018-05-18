@@ -301,6 +301,7 @@ public class DigitalSignature
 
     public static void vaidateTable(String tableName)
     {
-        //TODO Check Signature for every entry in the Table
+        //TODO (optional) Check Signature for every entry in the Table
+		//for later correctness proof
     }
 }

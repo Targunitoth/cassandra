@@ -140,7 +140,7 @@ public class BlockchainHandler
 
     private static void setBlockChainHead(ByteBuffer newHead)
     {
-        //Nach jedem Schreiben des Headers muss er erst wieder gelesen werden
+        //(Optional) Nach jedem Schreiben des Headers muss er erst wieder gelesen werden
         blockChainHead = newHead;
         //Save in database
         saveNewHead();
@@ -172,6 +172,9 @@ public class BlockchainHandler
 
         //Set this key and hash as new predecessor
         predecessorHash = sha256hex;
+
+        //TODO Prüfe ob der alte Header der Predecessor ist, dann setze den neuen Header
+        //Or something like if(blockChainHead in cellValues){}else{throw Error}
         BlockchainHandler.setBlockChainHead(key);
 
         //For Debuging

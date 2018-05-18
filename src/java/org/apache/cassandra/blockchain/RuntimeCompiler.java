@@ -1,4 +1,6 @@
-//Kopiert von https://stackoverflow.com/questions/935175/convert-string-to-code
+/*
+* Quelle: https://stackoverflow.com/questions/935175/convert-string-to-code
+*/
 
 package org.apache.cassandra.blockchain;
 

@@ -111,6 +111,10 @@ public class SmartContracts
         {
             throw new ContractParsingException("Amount2 not set");
         }
+		if (amount2 > amount1)
+        {
+            throw new ContractParsingException("Amount2 is bigger then Amount1. This could lead to a endless loop");
+        }
         this.contractText = contractText;
     }
 

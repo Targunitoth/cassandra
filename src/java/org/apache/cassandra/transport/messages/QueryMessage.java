@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.transport.messages;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
@@ -25,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.cql3.QueryOptions;
 import org.apache.cassandra.cql3.QueryProcessor;
+import org.apache.cassandra.exceptions.DateExeption;
 import org.apache.cassandra.exceptions.RequestExecutionException;
 import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.service.ClientState;
@@ -77,6 +80,7 @@ public class QueryMessage extends Message.Request
 
     public String query;
     public final QueryOptions options;
+    public static Timestamp[] dates = new Timestamp[3];
 
     public QueryMessage(String query, QueryOptions options)
     {
@@ -89,6 +93,26 @@ public class QueryMessage extends Message.Request
     {
         try
         {
+            //Hack here for Date
+            if(query.toUpperCase().contains("DATE")){
+                if(query.toUpperCase().contains("CLEAR"))
+                {
+                    dates = new Timestamp[3];
+                    dates[0] = new Timestamp(System.currentTimeMillis());
+                    return new ResultMessage.Void();
+                }
+
+                if(query.toUpperCase().contains("SET")){
+                    dates[1] = new Timestamp(System.currentTimeMillis());
+                    return new ResultMessage.Void();
+                }
+
+                if(query.toUpperCase().contains("PRINT")){
+                    dates[2] = new Timestamp(System.currentTimeMillis());
+                    throw new DateExeption(dates);
+                }
+            }
+
             //Hack here for validate Blockchain
             if (QueryProcessor.validateTable(query)) return new ResultMessage.Void();
 

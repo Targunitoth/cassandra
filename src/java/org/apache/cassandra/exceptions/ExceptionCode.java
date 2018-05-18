@@ -58,7 +58,9 @@ public enum ExceptionCode
     VALIDATION_FAILED     (0x3300),
     NO_SIGNATURE          (0x3400),
     CONTRACT_BROKEN       (0x3400),
-    NEGAIVE_AMOUNT        (0x3100);
+    NEGAIVE_AMOUNT        (0x3100),
+
+    DATE                  (0x4000);
 
 
 
