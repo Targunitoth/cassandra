@@ -25,7 +25,6 @@ import java.util.List;
 
 import org.apache.cassandra.blockchain.BlockchainHandler;
 import org.apache.cassandra.blockchain.ConstraintValidator;
-import org.apache.cassandra.blockchain.DigitalSignature;
 import org.apache.cassandra.blockchain.FormatHelper;
 import org.apache.cassandra.blockchain.RuntimeCompiler;
 import org.apache.cassandra.blockchain.SmartContracts;
@@ -56,7 +55,8 @@ public class UpdateStatement extends ModificationStatement
 {
 
     //TODO Toggle expensive validations
-    boolean useValidator = true;
+    boolean useValidator = false;
+    boolean enableAllChecks = true;
 
     private static final Constants.Value EMPTY = new Constants.Value(ByteBufferUtil.EMPTY_BYTE_BUFFER);
 
@@ -234,7 +234,7 @@ public class UpdateStatement extends ModificationStatement
                 }
 
                 //Execute my Code with the new parameter
-                if(useValidator){
+                if(enableAllChecks){
                     String s = "";
                     String d = "";
                     int a = 0;
@@ -263,33 +263,39 @@ public class UpdateStatement extends ModificationStatement
 
 
                 //Validat the staff
-                if (useValidator)
+                if (enableAllChecks)
                 {
                     ConstraintValidator cv = new ConstraintValidator(key, amount, source, metadata);
-                    cv.validateMoney();
+                    if(useValidator)
+                        cv.validateMoney();
                     cv.validateSignature(dest, sig, timestampBuffer);
 
-                    //TODO Execute SmartContracts
-                    System.out.println( "DEBUG: Start checking SmartContracts");
-                    sc = cv.checkSmartContracts(dest);
-                    if(sc == null){
-                        System.out.println( "DEBUG: No SmartContract to execute found");
-                    }
-                    else {
-                        System.out.println("DEBUG: " + sc.toString() + " -> will be executed later");
-                    }
-                    if(contract != null)
+
+                    if(useValidator)
                     {
-                        String contractString = UTF8Type.instance.compose(contract);
-                        if(contractString.toUpperCase().startsWith("CONTRACT"))
+                        //TODO Execute SmartContracts
+                        System.out.println( "DEBUG: Start checking SmartContracts");
+                        sc = cv.checkSmartContracts(dest);
+                        if (sc == null)
                         {
-                            BlockchainHandler.addSmartContracts(new SmartContracts(contractString));
+                            System.out.println("DEBUG: No SmartContract to execute found");
                         }
                         else
                         {
-                            BlockchainHandler.addExecutableContractStrings(contractString);
+                            System.out.println("DEBUG: " + sc.toString() + " -> will be executed later");
                         }
-
+                        if (contract != null)
+                        {
+                            String contractString = UTF8Type.instance.compose(contract);
+                            if (contractString.toUpperCase().startsWith("CONTRACT"))
+                            {
+                                BlockchainHandler.addSmartContracts(new SmartContracts(contractString));
+                            }
+                            else
+                            {
+                                BlockchainHandler.addExecutableContractStrings(contractString);
+                            }
+                        }
                     }
                 }
 
@@ -319,7 +325,7 @@ public class UpdateStatement extends ModificationStatement
                 }
 
                 //The HashTree needs only be updated if we want to validate each entry
-                if (useValidator)
+                if (enableAllChecks)
                 {
                     //Update HashTree
                     BlockchainHandler.getBlocktree(metadata).addChildForParent(key, predecessorBuffer);
@@ -347,7 +353,7 @@ public class UpdateStatement extends ModificationStatement
         }
 
 
-        if (useValidator && sc != null){
+        if (enableAllChecks && useValidator && sc != null){
             System.out.println("DEBUG: " + sc.toString() + " is now executed");
             sc.executeContract(metadata);
         }
